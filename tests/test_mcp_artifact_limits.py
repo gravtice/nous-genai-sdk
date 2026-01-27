@@ -19,7 +19,13 @@ class TestMcpArtifactEviction(unittest.TestCase):
             self.skipTest("missing dependency: starlette")
 
         from nous.genai.mcp_server import build_server
-        from nous.genai.types import Capability, GenerateResponse, Message, Part, PartSourceBytes
+        from nous.genai.types import (
+            Capability,
+            GenerateResponse,
+            Message,
+            Part,
+            PartSourceBytes,
+        )
 
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -76,13 +82,21 @@ class TestMcpArtifactEviction(unittest.TestCase):
                 out1 = server.call_tool("generate", {"request": req_dict})
                 if asyncio.iscoroutine(out1):
                     out1 = asyncio.run(out1)
-                if isinstance(out1, tuple) and len(out1) == 2 and isinstance(out1[1], dict):
+                if (
+                    isinstance(out1, tuple)
+                    and len(out1) == 2
+                    and isinstance(out1[1], dict)
+                ):
                     out1 = out1[1]
 
                 out2 = server.call_tool("generate", {"request": req_dict})
                 if asyncio.iscoroutine(out2):
                     out2 = asyncio.run(out2)
-                if isinstance(out2, tuple) and len(out2) == 2 and isinstance(out2[1], dict):
+                if (
+                    isinstance(out2, tuple)
+                    and len(out2) == 2
+                    and isinstance(out2[1], dict)
+                ):
                     out2 = out2[1]
 
                 self.assertIsInstance(out1, dict)
@@ -113,7 +127,13 @@ class TestMcpArtifactEviction(unittest.TestCase):
             self.skipTest("missing dependency: starlette")
 
         from nous.genai.mcp_server import _BearerAuthMiddleware, build_server
-        from nous.genai.types import Capability, GenerateResponse, Message, Part, PartSourceBytes
+        from nous.genai.types import (
+            Capability,
+            GenerateResponse,
+            Message,
+            Part,
+            PartSourceBytes,
+        )
 
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -171,7 +191,11 @@ class TestMcpArtifactEviction(unittest.TestCase):
                 out = server.call_tool("generate", {"request": req_dict})
                 if asyncio.iscoroutine(out):
                     out = asyncio.run(out)
-                if isinstance(out, tuple) and len(out) == 2 and isinstance(out[1], dict):
+                if (
+                    isinstance(out, tuple)
+                    and len(out) == 2
+                    and isinstance(out[1], dict)
+                ):
                     out = out[1]
 
                 url = out["output"][0]["content"][0]["source"]["url"]
@@ -188,7 +212,10 @@ class TestMcpArtifactEviction(unittest.TestCase):
                 r_missing = client.get(f"/artifact/{artifact_id}")
                 self.assertEqual(r_missing.status_code, 401)
 
-                r_header = client.get(f"/artifact/{artifact_id}", headers={"Authorization": f"Bearer {bearer}"})
+                r_header = client.get(
+                    f"/artifact/{artifact_id}",
+                    headers={"Authorization": f"Bearer {bearer}"},
+                )
                 self.assertEqual(r_header.status_code, 200)
 
                 r_signed = client.get(f"{parsed.path}?{parsed.query}")

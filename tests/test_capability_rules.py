@@ -11,10 +11,17 @@ class TestCapabilityRules(unittest.TestCase):
         self.assertEqual(adapter.capabilities("kimi-k2").input_modalities, {"text"})
         self.assertEqual(adapter.capabilities("qvq-72b").input_modalities, {"text"})
 
-        self.assertEqual(adapter.capabilities("kimi-latest").input_modalities, {"text", "image"})
+        self.assertEqual(
+            adapter.capabilities("kimi-latest").input_modalities, {"text", "image"}
+        )
 
-        self.assertEqual(adapter.capabilities("qwen2.5-vl-72b-instruct").input_modalities, {"text", "image"})
-        self.assertEqual(adapter.capabilities("qwen2.5-72b-instruct").input_modalities, {"text"})
+        self.assertEqual(
+            adapter.capabilities("qwen2.5-vl-72b-instruct").input_modalities,
+            {"text", "image"},
+        )
+        self.assertEqual(
+            adapter.capabilities("qwen2.5-72b-instruct").input_modalities, {"text"}
+        )
 
         cap_asr = adapter.capabilities("qwen-asr")
         self.assertEqual(cap_asr.input_modalities, {"text", "audio"})
@@ -27,7 +34,11 @@ class TestCapabilityRules(unittest.TestCase):
     def test_gemini_adapter_modalities_match_series_rules(self) -> None:
         from nous.genai.providers.gemini import GeminiAdapter
 
-        adapter = GeminiAdapter(api_key="__demo__", base_url="https://example.invalid", provider_name="google")
+        adapter = GeminiAdapter(
+            api_key="__demo__",
+            base_url="https://example.invalid",
+            provider_name="google",
+        )
 
         cap_imagen = adapter.capabilities("imagen-4.0-generate-001")
         self.assertEqual(cap_imagen.input_modalities, {"text"})

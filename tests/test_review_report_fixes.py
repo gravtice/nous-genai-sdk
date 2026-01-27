@@ -8,13 +8,27 @@ from unittest.mock import patch
 class TestAnthropicImageUrlDoesNotCrash(unittest.TestCase):
     def test_messages_body_passes_proxy_url_to_downloader(self) -> None:
         from nous.genai.providers.anthropic import AnthropicAdapter
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, Part, PartSourceUrl
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            Part,
+            PartSourceUrl,
+        )
 
-        with tempfile.NamedTemporaryFile(prefix="genaisdk-test-", suffix=".bin", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            prefix="genaisdk-test-", suffix=".bin", delete=False
+        ) as f:
             tmp_path = f.name
             f.write(b"123")
 
-        def _fake_download_to_tempfile(*, url: str, timeout_ms: int | None, max_bytes: int | None, proxy_url: str | None):  # type: ignore[no-untyped-def]
+        def _fake_download_to_tempfile(
+            *,
+            url: str,
+            timeout_ms: int | None,
+            max_bytes: int | None,
+            proxy_url: str | None,
+        ):  # type: ignore[no-untyped-def]
             self.assertEqual(url, "http://example.invalid/x.png")
             self.assertEqual(proxy_url, "http://proxy.local")
             return tmp_path
@@ -26,14 +40,21 @@ class TestAnthropicImageUrlDoesNotCrash(unittest.TestCase):
                 Message(
                     role="user",
                     content=[
-                        Part(type="image", mime_type="image/png", source=PartSourceUrl(url="http://example.invalid/x.png"))
+                        Part(
+                            type="image",
+                            mime_type="image/png",
+                            source=PartSourceUrl(url="http://example.invalid/x.png"),
+                        )
                     ],
                 )
             ],
             output=OutputSpec(modalities=["text"]),
         )
         try:
-            with patch("nous.genai.providers.anthropic.download_to_tempfile", side_effect=_fake_download_to_tempfile):
+            with patch(
+                "nous.genai.providers.anthropic.download_to_tempfile",
+                side_effect=_fake_download_to_tempfile,
+            ):
                 body = adapter._messages_body(req, stream=False)  # type: ignore[attr-defined]
         finally:
             try:
@@ -56,13 +77,19 @@ class TestUrlDownloadPrivateHostDnsBlocked(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix="genaisdk-test-") as d:
             out_path = os.path.join(d, "out.bin")
-            with patch.dict(os.environ, {"NOUS_GENAI_ALLOW_PRIVATE_URLS": "0"}, clear=False):
-                with patch("nous.genai._internal.http.socket.getaddrinfo") as mock_getaddrinfo:
+            with patch.dict(
+                os.environ, {"NOUS_GENAI_ALLOW_PRIVATE_URLS": "0"}, clear=False
+            ):
+                with patch(
+                    "nous.genai._internal.http.socket.getaddrinfo"
+                ) as mock_getaddrinfo:
                     import socket
 
                     mock_getaddrinfo.side_effect = _fake_getaddrinfo
                     with self.assertRaises(GenAIError) as cm:
-                        download_to_file(url="http://evil.example/x", output_path=out_path)
+                        download_to_file(
+                            url="http://evil.example/x", output_path=out_path
+                        )
         self.assertEqual(cm.exception.info.type, "InvalidRequestError")
         self.assertIn("private/loopback", cm.exception.info.message)
 
@@ -88,7 +115,13 @@ class TestOpenAIProviderOptionsNoOverride(unittest.TestCase):
     def test_transcribe_provider_options_cannot_override_model(self) -> None:
         from nous.genai import GenAIError
         from nous.genai.providers.openai import OpenAIAdapter
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, Part, PartSourceBytes
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            Part,
+            PartSourceBytes,
+        )
 
         adapter = OpenAIAdapter(api_key="__test__")
         req = GenerateRequest(
@@ -118,7 +151,14 @@ class TestClientInputModalitiesValidated(unittest.TestCase):
     def test_client_rejects_unsupported_input_modality(self) -> None:
         from nous.genai import GenAIError
         from nous.genai.client import Client
-        from nous.genai.types import Capability, GenerateRequest, Message, OutputSpec, Part, PartSourceBytes
+        from nous.genai.types import (
+            Capability,
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            Part,
+            PartSourceBytes,
+        )
 
         class _DummyAdapter:
             def capabilities(self, model_id: str) -> Capability:  # noqa: ARG002
@@ -153,7 +193,9 @@ class TestClientInputModalitiesValidated(unittest.TestCase):
             with self.assertRaises(GenAIError) as cm:
                 client.generate(req)
         self.assertEqual(cm.exception.info.type, "NotSupportedError")
-        self.assertIn("requested input modalities not supported", cm.exception.info.message)
+        self.assertIn(
+            "requested input modalities not supported", cm.exception.info.message
+        )
 
 
 class TestPartValidation(unittest.TestCase):
@@ -173,7 +215,13 @@ class TestMcpArtifactByteLimit(unittest.TestCase):
             self.skipTest("missing dependency: mcp")
 
         from nous.genai.mcp_server import build_server
-        from nous.genai.types import Capability, GenerateResponse, Message, Part, PartSourceBytes
+        from nous.genai.types import (
+            Capability,
+            GenerateResponse,
+            Message,
+            Part,
+            PartSourceBytes,
+        )
 
         resp = GenerateResponse(
             id="r1",
@@ -242,7 +290,13 @@ class TestMcpArtifactByteLimit(unittest.TestCase):
             self.skipTest("missing dependency: mcp")
 
         from nous.genai.mcp_server import build_server
-        from nous.genai.types import Capability, GenerateResponse, Message, Part, PartSourceBytes
+        from nous.genai.types import (
+            Capability,
+            GenerateResponse,
+            Message,
+            Part,
+            PartSourceBytes,
+        )
 
         resp = GenerateResponse(
             id="r1",

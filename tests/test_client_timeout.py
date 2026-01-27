@@ -54,7 +54,14 @@ class TestClientTimeout(unittest.TestCase):
 
     def test_generate_defaults_timeout_ms_from_env(self) -> None:
         from nous.genai.client import Client
-        from nous.genai.types import Capability, GenerateRequest, GenerateResponse, Message, OutputSpec, Part
+        from nous.genai.types import (
+            Capability,
+            GenerateRequest,
+            GenerateResponse,
+            Message,
+            OutputSpec,
+            Part,
+        )
 
         class DummyAdapter:
             def __init__(self) -> None:
@@ -93,7 +100,15 @@ class TestClientTimeout(unittest.TestCase):
 
     def test_generate_stream_passes_request_timeout_ms(self) -> None:
         from nous.genai.client import Client
-        from nous.genai.types import Capability, GenerateEvent, GenerateParams, GenerateRequest, Message, OutputSpec, Part
+        from nous.genai.types import (
+            Capability,
+            GenerateEvent,
+            GenerateParams,
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            Part,
+        )
 
         class DummyAdapter:
             def __init__(self) -> None:

@@ -100,7 +100,9 @@ def _is_private_host(host: str) -> bool:
     return False
 
 
-def _resolve_url_host_ips(host: str) -> tuple[list[ipaddress.IPv4Address | ipaddress.IPv6Address], bool]:
+def _resolve_url_host_ips(
+    host: str,
+) -> tuple[list[ipaddress.IPv4Address | ipaddress.IPv6Address], bool]:
     """
     Resolve a URL host once and classify it as private/loopback.
 
@@ -133,7 +135,9 @@ def download_to_file(
 
     Security: by default rejects obvious private/loopback IP hosts unless `NOUS_GENAI_ALLOW_PRIVATE_URLS=1`.
     """
-    effective_max = _default_url_download_max_bytes() if max_bytes is None else max_bytes
+    effective_max = (
+        _default_url_download_max_bytes() if max_bytes is None else max_bytes
+    )
     if effective_max <= 0:
         raise invalid_request_error("max_bytes must be positive")
 
@@ -153,7 +157,9 @@ def download_to_file(
                 "url host is private/loopback; set NOUS_GENAI_ALLOW_PRIVATE_URLS=1 to allow"
             )
         if not resolved:
-            raise provider_error(f"dns resolution failed: {parsed.hostname}", retryable=True)
+            raise provider_error(
+                f"dns resolution failed: {parsed.hostname}", retryable=True
+            )
         connect_ip = str(resolved[0])
 
         path = _path_with_query(parsed)
@@ -167,10 +173,16 @@ def download_to_file(
         )
         try:
             req_headers: dict[str, str] = {"Accept": "*/*"}
-            if headers and initial_host and parsed.hostname.lower() == initial_host.lower():
+            if (
+                headers
+                and initial_host
+                and parsed.hostname.lower() == initial_host.lower()
+            ):
                 req_headers.update(headers)
             if proxy_url:
-                target_port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+                target_port = parsed.port or (
+                    443 if parsed.scheme.lower() == "https" else 80
+                )
                 default_port = 443 if parsed.scheme.lower() == "https" else 80
                 req_headers["Host"] = (
                     parsed.hostname
@@ -187,7 +199,7 @@ def download_to_file(
                 continue
             if resp.status < 200 or resp.status >= 300:
                 raw = resp.read(64 * 1024 + 1)
-                _raise_for_status(resp.status, raw[:64 * 1024])
+                _raise_for_status(resp.status, raw[: 64 * 1024])
 
             raw_len = resp.getheader("Content-Length")
             if raw_len:
@@ -201,7 +213,9 @@ def download_to_file(
                     )
 
             out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
-            with tempfile.NamedTemporaryFile(prefix="genaisdk-dl-", dir=out_dir, delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(
+                prefix="genaisdk-dl-", dir=out_dir, delete=False
+            ) as tmp:
                 tmp_path = tmp.name
             total = 0
             try:
@@ -250,7 +264,9 @@ def download_to_tempfile(
     suffix: str = "",
     proxy_url: str | None = None,
 ) -> str:
-    with tempfile.NamedTemporaryFile(prefix="genaisdk-", suffix=suffix, delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        prefix="genaisdk-", suffix=suffix, delete=False
+    ) as f:
         tmp_path = f.name
     try:
         download_to_file(
@@ -294,18 +310,16 @@ class _PinnedHTTPConnection(http.client.HTTPConnection):
         self._connect_host = connect_host
 
     def connect(self) -> None:
-        self.sock = self._create_connection(
-            (self._connect_host, self.port),
-            self.timeout,
-            self.source_address,
+        self.sock = socket.create_connection(
+            (self._connect_host, self.port), timeout=self.timeout
         )
         try:
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         except OSError as e:
             if e.errno != errno.ENOPROTOOPT:
                 raise
-        if self._tunnel_host:
-            self._tunnel()
+        if getattr(self, "_tunnel_host", None):
+            self._tunnel()  # type: ignore[attr-defined]
 
 
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
@@ -322,21 +336,24 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         super().__init__(host, port, timeout=timeout, context=context)
         self._connect_host = connect_host
         self._tls_server_hostname = tls_server_hostname
+        self._ssl_context = context
 
     def connect(self) -> None:
-        self.sock = self._create_connection(
-            (self._connect_host, self.port),
-            self.timeout,
-            self.source_address,
+        self.sock = socket.create_connection(
+            (self._connect_host, self.port), timeout=self.timeout
         )
         try:
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         except OSError as e:
             if e.errno != errno.ENOPROTOOPT:
                 raise
-        if self._tunnel_host:
-            self._tunnel()
-        self.sock = self._context.wrap_socket(self.sock, server_hostname=self._tls_server_hostname)
+        if getattr(self, "_tunnel_host", None):
+            self._tunnel()  # type: ignore[attr-defined]
+        assert self.sock is not None
+        self.sock = self._ssl_context.wrap_socket(
+            self.sock,
+            server_hostname=self._tls_server_hostname,
+        )
 
 
 def _make_connection(
@@ -370,7 +387,7 @@ def _make_connection(
         effective_target_port = target_port or (443 if is_https else 80)
         if is_https:
             ctx = ssl.create_default_context()
-            conn = _PinnedHTTPSConnection(
+            conn: http.client.HTTPConnection = _PinnedHTTPSConnection(
                 p.hostname,
                 proxy_port,
                 connect_host=p.hostname,
@@ -380,7 +397,9 @@ def _make_connection(
             )
         else:
             conn = http.client.HTTPConnection(p.hostname, proxy_port, timeout=timeout_s)
-        conn.set_tunnel(target_connect_host, effective_target_port, headers=_proxy_tunnel_headers(p))
+        conn.set_tunnel(
+            target_connect_host, effective_target_port, headers=_proxy_tunnel_headers(p)
+        )
         return conn
 
     if is_https:
@@ -395,7 +414,9 @@ def _make_connection(
                 timeout=timeout_s,
                 context=ctx,
             )
-        return http.client.HTTPSConnection(target_host, effective_port, timeout=timeout_s, context=ctx)
+        return http.client.HTTPSConnection(
+            target_host, effective_port, timeout=timeout_s, context=ctx
+        )
     effective_port = target_port or 80
     if target_connect_host != target_host:
         return _PinnedHTTPConnection(
@@ -632,7 +653,11 @@ def request_json(
     timeout_ms: int | None = None,
     proxy_url: str | None = None,
 ) -> dict[str, Any]:
-    body = None if json_body is None else json.dumps(json_body, separators=(",", ":")).encode("utf-8")
+    body = (
+        None
+        if json_body is None
+        else json.dumps(json_body, separators=(",", ":")).encode("utf-8")
+    )
     req_headers = {"Accept": "application/json"}
     if body is not None:
         req_headers["Content-Type"] = "application/json"
@@ -710,7 +735,11 @@ def request_stream_json_sse(
     timeout_ms: int | None = None,
     proxy_url: str | None = None,
 ) -> Iterator[dict[str, Any]]:
-    body = None if json_body is None else json.dumps(json_body, separators=(",", ":")).encode("utf-8")
+    body = (
+        None
+        if json_body is None
+        else json.dumps(json_body, separators=(",", ":")).encode("utf-8")
+    )
     req_headers = {"Accept": "text/event-stream"}
     if body is not None:
         req_headers["Content-Type"] = "application/json"
@@ -874,7 +903,12 @@ def _iter_sse_events(resp: http.client.HTTPResponse) -> Iterator[SSEEvent]:
         if text.endswith("\r"):
             text = text[:-1]
         if not text:
-            if buffer or event_type is not None or event_id is not None or retry_ms is not None:
+            if (
+                buffer
+                or event_type is not None
+                or event_id is not None
+                or retry_ms is not None
+            ):
                 yield SSEEvent(
                     data="\n".join(buffer),
                     event=event_type,
@@ -906,7 +940,9 @@ def _iter_sse_events(resp: http.client.HTTPResponse) -> Iterator[SSEEvent]:
             except ValueError:
                 continue
     if buffer or event_type is not None or event_id is not None or retry_ms is not None:
-        yield SSEEvent(data="\n".join(buffer), event=event_type, id=event_id, retry=retry_ms)
+        yield SSEEvent(
+            data="\n".join(buffer), event=event_type, id=event_id, retry=retry_ms
+        )
 
 
 def _iter_sse_data(resp: http.client.HTTPResponse) -> Iterator[str]:

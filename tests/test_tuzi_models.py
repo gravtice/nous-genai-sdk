@@ -46,24 +46,43 @@ class TestTuziModels(unittest.TestCase):
         self.assertEqual(cm.exception.info.type, "InvalidRequestError")
 
     def test_tuzi_sora_seconds_sent_as_string(self) -> None:
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, OutputVideoSpec, Part
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            OutputVideoSpec,
+            Part,
+        )
         from nous.genai.providers.openai import OpenAIAdapter
-        from nous.genai._internal.http import multipart_form_data_fields as real_multipart_form_data_fields
+        from nous.genai._internal.http import (
+            multipart_form_data_fields as real_multipart_form_data_fields,
+        )
 
         req = GenerateRequest(
             model="tuzi-openai:sora-2",
             input=[Message(role="user", content=[Part.from_text("test")])],
-            output=OutputSpec(modalities=["video"], video=OutputVideoSpec(duration_sec=4, aspect_ratio="16:9")),
+            output=OutputSpec(
+                modalities=["video"],
+                video=OutputVideoSpec(duration_sec=4, aspect_ratio="16:9"),
+            ),
             wait=False,
         )
 
         with (
-            patch("nous.genai.providers.openai.multipart_form_data_fields") as multipart_form_data_fields,
-            patch("nous.genai.providers.openai.request_streaming_body_json") as request_streaming_body_json,
+            patch(
+                "nous.genai.providers.openai.multipart_form_data_fields"
+            ) as multipart_form_data_fields,
+            patch(
+                "nous.genai.providers.openai.request_streaming_body_json"
+            ) as request_streaming_body_json,
         ):
             multipart_form_data_fields.side_effect = real_multipart_form_data_fields
             request_streaming_body_json.return_value = {"id": "vid_123"}
-            adapter = OpenAIAdapter(api_key="__demo__", base_url="https://example.invalid/v1", provider_name="tuzi-openai")
+            adapter = OpenAIAdapter(
+                api_key="__demo__",
+                base_url="https://example.invalid/v1",
+                provider_name="tuzi-openai",
+            )
             out = adapter.generate(req, stream=False)
             self.assertEqual(out.status, "running")
 
@@ -74,7 +93,11 @@ class TestTuziModels(unittest.TestCase):
 
         with patch("nous.genai.providers.openai.request_json") as request_json:
             request_json.return_value = {"id": "vid_123"}
-            adapter = OpenAIAdapter(api_key="__demo__", base_url="https://example.invalid/v1", provider_name="openai")
+            adapter = OpenAIAdapter(
+                api_key="__demo__",
+                base_url="https://example.invalid/v1",
+                provider_name="openai",
+            )
             out = adapter.generate(req, stream=False)
             self.assertEqual(out.status, "running")
 
@@ -85,9 +108,15 @@ class TestTuziModels(unittest.TestCase):
     def test_openai_adapter_capabilities_infer_tuzi_modalities(self) -> None:
         from nous.genai.providers.openai import OpenAIAdapter
 
-        adapter = OpenAIAdapter(api_key="__demo__", base_url="https://example.invalid/v1", provider_name="tuzi-openai")
+        adapter = OpenAIAdapter(
+            api_key="__demo__",
+            base_url="https://example.invalid/v1",
+            provider_name="tuzi-openai",
+        )
 
-        self.assertEqual(adapter.capabilities("sd3.5-large").output_modalities, {"image"})
+        self.assertEqual(
+            adapter.capabilities("sd3.5-large").output_modalities, {"image"}
+        )
         self.assertEqual(adapter.capabilities("pika-1.5").output_modalities, {"video"})
         self.assertEqual(adapter.capabilities("suno-v3").output_modalities, {"audio"})
 
@@ -97,9 +126,19 @@ class TestTuziModels(unittest.TestCase):
 
     def test_openai_images_supports_tuzi_wrapped_response(self) -> None:
         from nous.genai.providers.openai import OpenAIAdapter
-        from nous.genai.types import GenerateRequest, Message, OutputImageSpec, OutputSpec, Part
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputImageSpec,
+            OutputSpec,
+            Part,
+        )
 
-        adapter = OpenAIAdapter(api_key="__demo__", base_url="https://example.invalid/v1", provider_name="tuzi-web")
+        adapter = OpenAIAdapter(
+            api_key="__demo__",
+            base_url="https://example.invalid/v1",
+            provider_name="tuzi-web",
+        )
         req = GenerateRequest(
             model="tuzi-web:chat-seededit",
             input=[Message(role="user", content=[Part.from_text("hi")])],
@@ -108,7 +147,12 @@ class TestTuziModels(unittest.TestCase):
         )
 
         with patch("nous.genai.providers.openai.request_json") as request_json:
-            request_json.return_value = {"data": {"created": 1736160000, "images": [{"url": "https://example.invalid/a.png"}]}}
+            request_json.return_value = {
+                "data": {
+                    "created": 1736160000,
+                    "images": [{"url": "https://example.invalid/a.png"}],
+                }
+            }
             resp = adapter.generate(req, stream=False)
 
         self.assertEqual(resp.status, "completed")
@@ -121,25 +165,51 @@ class TestTuziModels(unittest.TestCase):
     def test_gemini_adapter_capabilities_support_imagen_and_native_audio(self) -> None:
         from nous.genai.providers.gemini import GeminiAdapter
 
-        adapter = GeminiAdapter(api_key="__demo__", base_url="https://example.invalid", provider_name="google")
+        adapter = GeminiAdapter(
+            api_key="__demo__",
+            base_url="https://example.invalid",
+            provider_name="google",
+        )
 
-        self.assertEqual(adapter.capabilities("imagen-4.0-generate-001").output_modalities, {"image"})
-        self.assertIn("audio", adapter.capabilities("gemini-2.5-flash-native-audio-latest").output_modalities)
+        self.assertEqual(
+            adapter.capabilities("imagen-4.0-generate-001").output_modalities, {"image"}
+        )
+        self.assertIn(
+            "audio",
+            adapter.capabilities(
+                "gemini-2.5-flash-native-audio-latest"
+            ).output_modalities,
+        )
 
     def test_tuzi_openai_allows_non_sora_video_model_ids(self) -> None:
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, OutputVideoSpec, Part
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            OutputVideoSpec,
+            Part,
+        )
         from nous.genai.providers.openai import OpenAIAdapter
 
         req = GenerateRequest(
             model="tuzi-openai:pika-1.5",
             input=[Message(role="user", content=[Part.from_text("test")])],
-            output=OutputSpec(modalities=["video"], video=OutputVideoSpec(duration_sec=4, aspect_ratio="16:9")),
+            output=OutputSpec(
+                modalities=["video"],
+                video=OutputVideoSpec(duration_sec=4, aspect_ratio="16:9"),
+            ),
             wait=False,
         )
 
-        with patch("nous.genai.providers.openai.request_streaming_body_json") as request_streaming_body_json:
+        with patch(
+            "nous.genai.providers.openai.request_streaming_body_json"
+        ) as request_streaming_body_json:
             request_streaming_body_json.return_value = {"id": "vid_123"}
-            adapter = OpenAIAdapter(api_key="__demo__", base_url="https://example.invalid/v1", provider_name="tuzi-openai")
+            adapter = OpenAIAdapter(
+                api_key="__demo__",
+                base_url="https://example.invalid/v1",
+                provider_name="tuzi-openai",
+            )
             out = adapter.generate(req, stream=False)
             self.assertEqual(out.status, "running")
 
@@ -168,7 +238,11 @@ class TestTuziModels(unittest.TestCase):
         from nous.genai.providers.openai import OpenAIAdapter
         from nous.genai.types import GenerateRequest, Message, OutputSpec, Part
 
-        openai_adapter = OpenAIAdapter(api_key="__demo__", base_url="https://example.invalid/v1", provider_name="tuzi-web")
+        openai_adapter = OpenAIAdapter(
+            api_key="__demo__",
+            base_url="https://example.invalid/v1",
+            provider_name="tuzi-web",
+        )
         tuzi = TuziAdapter(openai=openai_adapter, gemini=None, anthropic=None)
 
         req = GenerateRequest(
@@ -187,12 +261,18 @@ class TestTuziModels(unittest.TestCase):
         from nous.genai.providers.openai import OpenAIAdapter
         from nous.genai.types import GenerateRequest, Message, OutputSpec, Part
 
-        openai_adapter = OpenAIAdapter(api_key="test_key", base_url="https://api.tu-zi.com/v1", provider_name="tuzi-web")
+        openai_adapter = OpenAIAdapter(
+            api_key="test_key",
+            base_url="https://api.tu-zi.com/v1",
+            provider_name="tuzi-web",
+        )
         tuzi = TuziAdapter(openai=openai_adapter, gemini=None, anthropic=None)
 
         req = GenerateRequest(
             model="tuzi-web:gemini-2.5-pro-deepsearch",
-            input=[Message(role="user", content=[Part.from_text("analyze market trends")])],
+            input=[
+                Message(role="user", content=[Part.from_text("analyze market trends")])
+            ],
             output=OutputSpec(modalities=["text"]),
             wait=False,
         )
@@ -213,13 +293,20 @@ class TestTuziModels(unittest.TestCase):
             # Verify request was made to asyncdata.net with -async suffix
             call_args = mock_request.call_args
             self.assertIn("asyncdata.net/tran/", call_args.kwargs["url"])
-            self.assertEqual(call_args.kwargs["json_body"]["model"], "gemini-2.5-pro-deepsearch-async")
+            self.assertEqual(
+                call_args.kwargs["json_body"]["model"],
+                "gemini-2.5-pro-deepsearch-async",
+            )
 
     def test_tuzi_suno_wait_fetch_audio_supports_list_data(self) -> None:
         from nous.genai.providers import TuziAdapter
         from nous.genai.providers.openai import OpenAIAdapter
 
-        openai_adapter = OpenAIAdapter(api_key="test_key", base_url="https://api.tu-zi.com/v1", provider_name="tuzi-web")
+        openai_adapter = OpenAIAdapter(
+            api_key="test_key",
+            base_url="https://api.tu-zi.com/v1",
+            provider_name="tuzi-web",
+        )
         tuzi = TuziAdapter(openai=openai_adapter, gemini=None, anthropic=None)
 
         with patch("nous.genai.providers.tuzi.TuziAdapter._suno_fetch") as suno_fetch:
@@ -230,7 +317,9 @@ class TestTuziModels(unittest.TestCase):
                     {"audio_url": "https://cdn1.suno.ai/def.mp3"},
                 ],
             }
-            resp = tuzi._suno_wait_fetch_audio(task_id="task_123", model_id="chirp-v4", timeout_ms=10_000, wait=True)
+            resp = tuzi._suno_wait_fetch_audio(
+                task_id="task_123", model_id="chirp-v4", timeout_ms=10_000, wait=True
+            )
 
         self.assertEqual(resp.status, "completed")
         parts = [p for m in resp.output for p in m.content]
@@ -238,4 +327,6 @@ class TestTuziModels(unittest.TestCase):
         self.assertEqual(parts[0].type, "audio")
         self.assertIsNotNone(parts[0].source)
         self.assertEqual(getattr(parts[0].source, "kind", None), "url")
-        self.assertEqual(getattr(parts[0].source, "url", None), "https://cdn1.suno.ai/abc.mp3")
+        self.assertEqual(
+            getattr(parts[0].source, "url", None), "https://cdn1.suno.ai/abc.mp3"
+        )

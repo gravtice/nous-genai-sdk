@@ -67,10 +67,13 @@ class TestCliGoogleDownloadAuth(unittest.TestCase):
             captured.update(kwargs)
 
         buf = io.StringIO()
-        with patch.object(cli, "Client", return_value=dummy), patch.object(
-            cli,
-            "download_to_file",
-            side_effect=fake_download_to_file,
+        with (
+            patch.object(cli, "Client", return_value=dummy),
+            patch.object(
+                cli,
+                "download_to_file",
+                side_effect=fake_download_to_file,
+            ),
         ):
             with redirect_stdout(buf):
                 cli.main(
@@ -84,8 +87,10 @@ class TestCliGoogleDownloadAuth(unittest.TestCase):
                     ]
                 )
 
-        self.assertEqual(captured.get("url"), "https://generativelanguage.googleapis.com/v1beta/files/f1:download?alt=media")
+        self.assertEqual(
+            captured.get("url"),
+            "https://generativelanguage.googleapis.com/v1beta/files/f1:download?alt=media",
+        )
         self.assertEqual(captured.get("output_path"), "out.mp4")
         self.assertEqual(captured.get("headers"), {"x-goog-api-key": "k"})
         self.assertIn("[OK] downloaded to out.mp4", buf.getvalue())
-

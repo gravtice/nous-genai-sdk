@@ -7,7 +7,13 @@ class TestMcpInputPolicy(unittest.TestCase):
     def test_mcp_transport_rejects_path_source(self) -> None:
         from nous.genai import GenAIError
         from nous.genai.client import Client
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, Part, PartSourcePath
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            Part,
+            PartSourcePath,
+        )
 
         with patch.dict(os.environ, {"NOUS_GENAI_TRANSPORT": "sse"}, clear=False):
             client = Client()
@@ -17,7 +23,11 @@ class TestMcpInputPolicy(unittest.TestCase):
                     Message(
                         role="user",
                         content=[
-                            Part(type="image", mime_type="image/png", source=PartSourcePath(path="/tmp/x.png"))
+                            Part(
+                                type="image",
+                                mime_type="image/png",
+                                source=PartSourcePath(path="/tmp/x.png"),
+                            )
                         ],
                     )
                 ],
@@ -31,7 +41,13 @@ class TestMcpInputPolicy(unittest.TestCase):
     def test_mcp_transport_rejects_bytes_source(self) -> None:
         from nous.genai import GenAIError
         from nous.genai.client import Client
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, Part, PartSourceBytes
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            Part,
+            PartSourceBytes,
+        )
 
         with patch.dict(os.environ, {"NOUS_GENAI_TRANSPORT": "sse"}, clear=False):
             client = Client()
@@ -40,7 +56,13 @@ class TestMcpInputPolicy(unittest.TestCase):
                 input=[
                     Message(
                         role="user",
-                        content=[Part(type="audio", mime_type="audio/wav", source=PartSourceBytes(data=b"123"))],
+                        content=[
+                            Part(
+                                type="audio",
+                                mime_type="audio/wav",
+                                source=PartSourceBytes(data=b"123"),
+                            )
+                        ],
                     )
                 ],
                 output=OutputSpec(modalities=["text"]),
@@ -53,7 +75,13 @@ class TestMcpInputPolicy(unittest.TestCase):
     def test_mcp_transport_allows_base64_source(self) -> None:
         from nous.genai import GenAIError
         from nous.genai.client import Client
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, Part, PartSourceBytes
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            Part,
+            PartSourceBytes,
+        )
 
         with patch.dict(os.environ, {"NOUS_GENAI_TRANSPORT": "sse"}, clear=False):
             client = Client()

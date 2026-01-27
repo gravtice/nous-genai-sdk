@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, Literal
 
 from ..types import Capability
 
@@ -25,8 +25,12 @@ def get_sdk_supported_models() -> list[dict[str, Any]]:
     for provider, model_ids in MODEL_CATALOG.items():
         protocol = _default_protocol(provider)
         for model_id in model_ids:
-            cap = _capability_for(provider=provider, protocol=protocol, model_id=model_id)
-            cap = _apply_capability_overrides(provider=provider, model_id=model_id, cap=cap)
+            cap = _capability_for(
+                provider=provider, protocol=protocol, model_id=model_id
+            )
+            cap = _apply_capability_overrides(
+                provider=provider, model_id=model_id, cap=cap
+            )
             category = _category_for_capability(cap)
             modes = _modes_for(cap)
             notes: list[str] = []
@@ -81,7 +85,11 @@ def _category_for_capability(cap: Capability) -> str:
         return "video"
     if out == {"audio"}:
         return "audio"
-    if out == {"text"} and "audio" in set(cap.input_modalities) and not cap.supports_stream:
+    if (
+        out == {"text"}
+        and "audio" in set(cap.input_modalities)
+        and not cap.supports_stream
+    ):
         return "transcription"
     return "chat"
 
@@ -90,41 +98,64 @@ def _capability_for(*, provider: str, protocol: str, model_id: str) -> Capabilit
     if provider in {"openai", "tuzi-openai"}:
         from ..providers import OpenAIAdapter
 
-        return OpenAIAdapter(api_key="__demo__", provider_name=provider, chat_api=protocol).capabilities(model_id)
+        return OpenAIAdapter(
+            api_key="__demo__", provider_name=provider, chat_api=protocol
+        ).capabilities(model_id)
 
     if provider in {"google", "tuzi-google"}:
         from ..providers import GeminiAdapter
 
-        auth_mode = "bearer" if provider.startswith("tuzi-") else "query_key"
-        return GeminiAdapter(api_key="__demo__", provider_name=provider, auth_mode=auth_mode).capabilities(model_id)
+        gemini_auth_mode: Literal["bearer", "query_key"] = (
+            "bearer" if provider.startswith("tuzi-") else "query_key"
+        )
+        return GeminiAdapter(
+            api_key="__demo__", provider_name=provider, auth_mode=gemini_auth_mode
+        ).capabilities(model_id)
 
     if provider in {"anthropic", "tuzi-anthropic"}:
         from ..providers import AnthropicAdapter
 
-        auth_mode = "bearer" if provider.startswith("tuzi-") else "x-api-key"
-        return AnthropicAdapter(api_key="__demo__", provider_name=provider, auth_mode=auth_mode).capabilities(model_id)
+        anthropic_auth_mode: Literal["bearer", "x-api-key"] = (
+            "bearer" if provider.startswith("tuzi-") else "x-api-key"
+        )
+        return AnthropicAdapter(
+            api_key="__demo__", provider_name=provider, auth_mode=anthropic_auth_mode
+        ).capabilities(model_id)
 
     if provider == "volcengine":
         from ..providers import OpenAIAdapter, VolcengineAdapter
 
-        adapter = VolcengineAdapter(
-            openai=OpenAIAdapter(api_key="__demo__", provider_name="volcengine", chat_api="chat_completions")
+        volc = VolcengineAdapter(
+            openai=OpenAIAdapter(
+                api_key="__demo__",
+                provider_name="volcengine",
+                chat_api="chat_completions",
+            )
         )
-        return adapter.capabilities(model_id)
+        return volc.capabilities(model_id)
 
     if provider == "aliyun":
         from ..providers import AliyunAdapter, OpenAIAdapter
 
-        adapter = AliyunAdapter(
-            openai=OpenAIAdapter(api_key="__demo__", provider_name="aliyun", chat_api="chat_completions")
+        aliyun = AliyunAdapter(
+            openai=OpenAIAdapter(
+                api_key="__demo__", provider_name="aliyun", chat_api="chat_completions"
+            )
         )
-        return adapter.capabilities(model_id)
+        return aliyun.capabilities(model_id)
 
     if provider == "tuzi-web":
-        from ..providers import AnthropicAdapter, GeminiAdapter, OpenAIAdapter, TuziAdapter
+        from ..providers import (
+            AnthropicAdapter,
+            GeminiAdapter,
+            OpenAIAdapter,
+            TuziAdapter,
+        )
 
         return TuziAdapter(
-            openai=OpenAIAdapter(api_key="__demo__", provider_name=provider, chat_api="chat_completions"),
+            openai=OpenAIAdapter(
+                api_key="__demo__", provider_name=provider, chat_api="chat_completions"
+            ),
             gemini=GeminiAdapter(
                 api_key="__demo__",
                 base_url="https://api.tu-zi.com",
@@ -132,13 +163,17 @@ def _capability_for(*, provider: str, protocol: str, model_id: str) -> Capabilit
                 auth_mode="bearer",
                 supports_file_upload=False,
             ),
-            anthropic=AnthropicAdapter(api_key="__demo__", provider_name=provider, auth_mode="bearer"),
+            anthropic=AnthropicAdapter(
+                api_key="__demo__", provider_name=provider, auth_mode="bearer"
+            ),
         ).capabilities(model_id)
 
     raise ValueError(f"unknown provider: {provider}")
 
 
-def _apply_capability_overrides(*, provider: str, model_id: str, cap: Capability) -> Capability:
+def _apply_capability_overrides(
+    *, provider: str, model_id: str, cap: Capability
+) -> Capability:
     overrides = CAPABILITY_OVERRIDES.get(provider)
     if not overrides:
         return cap

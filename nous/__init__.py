@@ -1,4 +1,3 @@
 """
 Nous namespace package.
 """
-

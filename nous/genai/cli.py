@@ -8,12 +8,18 @@ import sys
 import threading
 import time
 import urllib.parse
+from collections.abc import Callable
 from dataclasses import replace
+from typing import TypeVar
 
 from .client import Client
 from ._internal.errors import GenAIError
 from ._internal.http import download_to_file
-from .reference import get_model_catalog, get_parameter_mappings, get_sdk_supported_models
+from .reference import (
+    get_model_catalog,
+    get_parameter_mappings,
+    get_sdk_supported_models,
+)
 from .types import (
     GenerateRequest,
     Message,
@@ -32,7 +38,9 @@ from .types import (
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="genai", description="nous-genai-sdk CLI (minimal)")
+    parser = argparse.ArgumentParser(
+        prog="genai", description="nous-genai-sdk CLI (minimal)"
+    )
     sub = parser.add_subparsers(dest="command")
 
     model = sub.add_parser("model", help="Model discovery and support listing")
@@ -40,8 +48,12 @@ def main(argv: list[str] | None = None) -> None:
 
     model_sub.add_parser("sdk", help="List SDK curated models")
 
-    pm = model_sub.add_parser("provider", help="List remotely available model ids for a provider")
-    pm.add_argument("--provider", required=True, help="Provider (e.g. openai/google/tuzi-openai)")
+    pm = model_sub.add_parser(
+        "provider", help="List remotely available model ids for a provider"
+    )
+    pm.add_argument(
+        "--provider", required=True, help="Provider (e.g. openai/google/tuzi-openai)"
+    )
     pm.add_argument("--timeout-ms", type=int, help="Timeout budget in milliseconds")
 
     av = model_sub.add_parser(
@@ -49,8 +61,12 @@ def main(argv: list[str] | None = None) -> None:
         help="List available models (sdk ∩ provider) with capabilities",
     )
     av_scope = av.add_mutually_exclusive_group(required=True)
-    av_scope.add_argument("--provider", help="Provider (e.g. openai/google/tuzi-openai)")
-    av_scope.add_argument("--all", action="store_true", help="List across all providers")
+    av_scope.add_argument(
+        "--provider", help="Provider (e.g. openai/google/tuzi-openai)"
+    )
+    av_scope.add_argument(
+        "--all", action="store_true", help="List across all providers"
+    )
     av.add_argument("--timeout-ms", type=int, help="Timeout budget in milliseconds")
 
     um = model_sub.add_parser(
@@ -64,7 +80,9 @@ def main(argv: list[str] | None = None) -> None:
         "stale",
         help="List stale model ids (sdk catalog - provider) for a provider",
     )
-    st.add_argument("--provider", required=True, help="Provider (e.g. openai/google/tuzi-openai)")
+    st.add_argument(
+        "--provider", required=True, help="Provider (e.g. openai/google/tuzi-openai)"
+    )
     st.add_argument("--timeout-ms", type=int, help="Timeout budget in milliseconds")
 
     sub.add_parser("mapping", help="Print parameter mapping table")
@@ -73,14 +91,19 @@ def main(argv: list[str] | None = None) -> None:
     token_sub = token.add_subparsers(dest="token_command", required=True)
     token_sub.add_parser("generate", help="Generate a new token (sk-...)")
 
-    parser.add_argument("--model", default="openai:gpt-4o-mini", help='Model like "openai:gpt-4o-mini"')
+    parser.add_argument(
+        "--model", default="openai:gpt-4o-mini", help='Model like "openai:gpt-4o-mini"'
+    )
     parser.add_argument(
         "--protocol",
         choices=["chat_completions", "responses"],
         help='OpenAI chat protocol override ("chat_completions" or "responses")',
     )
     parser.add_argument("--prompt", help="Text prompt")
-    parser.add_argument("--prompt-path", help="Read prompt text from a file (lower priority than --prompt)")
+    parser.add_argument(
+        "--prompt-path",
+        help="Read prompt text from a file (lower priority than --prompt)",
+    )
     parser.add_argument("--image-path", help="Input image file path")
     parser.add_argument("--audio-path", help="Input audio file path")
     parser.add_argument("--video-path", help="Input video file path")
@@ -94,8 +117,14 @@ def main(argv: list[str] | None = None) -> None:
 
     probe = sub.add_parser("probe", help="Probe model modalities/modes for a provider")
     probe.add_argument("--provider", required=True, help="Provider (e.g. tuzi-web)")
-    probe.add_argument("--model", help="Comma-separated model ids (or provider:model_id)")
-    probe.add_argument("--all", action="store_true", help="Probe all SDK-supported models for the provider")
+    probe.add_argument(
+        "--model", help="Comma-separated model ids (or provider:model_id)"
+    )
+    probe.add_argument(
+        "--all",
+        action="store_true",
+        help="Probe all SDK-supported models for the provider",
+    )
     probe.add_argument(
         "--timeout-ms",
         type=int,
@@ -202,8 +231,14 @@ def main(argv: list[str] | None = None) -> None:
                 if resp.status == "running":
                     effective_timeout_ms = timeout_ms
                     if effective_timeout_ms is None:
-                        effective_timeout_ms = getattr(client, "_default_timeout_ms", None)
-                    timeout_note = f"{effective_timeout_ms}ms" if isinstance(effective_timeout_ms, int) else "timeout"
+                        effective_timeout_ms = getattr(
+                            client, "_default_timeout_ms", None
+                        )
+                    timeout_note = (
+                        f"{effective_timeout_ms}ms"
+                        if isinstance(effective_timeout_ms, int)
+                        else "timeout"
+                    )
                     print(
                         f"[INFO] 任务仍在运行（等待 {elapsed_s:.1f}s，可能已超时 {timeout_note}）；已返回 job_id。"
                         "可增大 --timeout-ms 或设置 NOUS_GENAI_TIMEOUT_MS 后重试。",
@@ -230,10 +265,14 @@ def main(argv: list[str] | None = None) -> None:
     except GenAIError as e:
         code = f" ({e.info.provider_code})" if e.info.provider_code else ""
         retryable = " retryable" if e.info.retryable else ""
-        raise SystemExit(f"[FAIL]{code}{retryable}: {e.info.type}: {e.info.message}") from None
+        raise SystemExit(
+            f"[FAIL]{code}{retryable}: {e.info.type}: {e.info.message}"
+        ) from None
 
 
-_DEFAULT_VIDEO_URL = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+_DEFAULT_VIDEO_URL = (
+    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+)
 
 
 def _run_probe(args: argparse.Namespace, *, timeout_ms: int | None) -> int:
@@ -249,7 +288,11 @@ def _run_probe(args: argparse.Namespace, *, timeout_ms: int | None) -> int:
 
     if args.all:
         rows = get_sdk_supported_models_for_provider(provider)
-        model_ids = [str(r["model_id"]) for r in rows if isinstance(r, dict) and isinstance(r.get("model_id"), str)]
+        model_ids = [
+            str(r["model_id"])
+            for r in rows
+            if isinstance(r, dict) and isinstance(r.get("model_id"), str)
+        ]
     else:
         model_ids = _parse_probe_models(provider, str(args.model))
 
@@ -289,21 +332,28 @@ def _run_probe(args: argparse.Namespace, *, timeout_ms: int | None) -> int:
             totals[k] += results[k]
 
         status = "OK" if results["fail"] == 0 else "FAIL"
-        print(f"result: {status} (ok={results['ok']} fail={results['fail']} skip={results['skip']})")
+        print(
+            f"result: {status} (ok={results['ok']} fail={results['fail']} skip={results['skip']})"
+        )
         print()
 
     print(f"[SUMMARY] ok={totals['ok']} fail={totals['fail']} skip={totals['skip']}")
     return 0 if totals["fail"] == 0 else 1
 
 
-def _run_with_spinner(fn, *, enabled: bool, label: str) -> tuple[object, float]:
+_T = TypeVar("_T")
+
+
+def _run_with_spinner(
+    fn: Callable[[], _T], *, enabled: bool, label: str
+) -> tuple[_T, float]:
     start = time.perf_counter()
     if not enabled or not sys.stderr.isatty():
         out = fn()
         return out, time.perf_counter() - start
 
     done = threading.Event()
-    result: dict[str, object] = {}
+    result: dict[str, _T] = {}
     error: dict[str, BaseException] = {}
 
     def _worker() -> None:
@@ -322,7 +372,9 @@ def _run_with_spinner(fn, *, enabled: bool, label: str) -> tuple[object, float]:
         exc = error.get("exc")
         if exc is not None:
             raise exc
-        return result.get("value"), time.perf_counter() - start
+        if "value" not in result:
+            raise RuntimeError("missing result value")
+        return result["value"], time.perf_counter() - start
 
     frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     i = 0
@@ -341,7 +393,9 @@ def _run_with_spinner(fn, *, enabled: bool, label: str) -> tuple[object, float]:
     exc = error.get("exc")
     if exc is not None:
         raise exc
-    return result.get("value"), time.perf_counter() - start
+    if "value" not in result:
+        raise RuntimeError("missing result value")
+    return result["value"], time.perf_counter() - start
 
 
 def _parse_probe_models(provider: str, value: str) -> list[str]:
@@ -480,7 +534,11 @@ def _probe_input_modality(
     in_modality: str,
     timeout_ms: int | None,
 ) -> dict[str, int]:
-    out_modality = "text" if "text" in set(cap.output_modalities) else sorted(cap.output_modalities)[0]
+    out_modality = (
+        "text"
+        if "text" in set(cap.output_modalities)
+        else sorted(cap.output_modalities)[0]
+    )
     label = f"input:{in_modality}"
     try:
         req = _build_probe_request(
@@ -560,7 +618,9 @@ def _build_probe_request(
     elif out_modality == "video":
         wait = False
 
-    output = _output_spec_for_modality(provider=provider, model_id=model_id, modality=out_modality)
+    output = _output_spec_for_modality(
+        provider=provider, model_id=model_id, modality=out_modality
+    )
     parts = _probe_input_parts(
         provider=provider,
         model_id=model_id,
@@ -593,7 +653,13 @@ def _probe_input_parts(
 
     if in_modality is None:
         if set(cap.input_modalities) == {"audio"}:
-            return [Part(type="audio", mime_type="audio/wav", source=PartSourceBytes(data=_probe_wav_bytes()))]
+            return [
+                Part(
+                    type="audio",
+                    mime_type="audio/wav",
+                    source=PartSourceBytes(data=_probe_wav_bytes()),
+                )
+            ]
         return [Part.from_text(prompt)]
 
     if in_modality == "text":
@@ -604,12 +670,25 @@ def _probe_input_parts(
         text_meta: dict[str, object] = {}
         if set(cap.input_modalities) == {"audio"} and out_modality == "text":
             text_meta = {"transcription_prompt": True}
-        parts = [Part(type="audio", mime_type="audio/wav", source=PartSourceBytes(data=_probe_wav_bytes()))]
+        parts = [
+            Part(
+                type="audio",
+                mime_type="audio/wav",
+                source=PartSourceBytes(data=_probe_wav_bytes()),
+            )
+        ]
         if prompt:
             parts.insert(0, Part(type="text", text=prompt, meta=text_meta))
         return parts
     if in_modality == "video":
-        return [Part.from_text(prompt), Part(type="video", mime_type="video/mp4", source=PartSourceUrl(url=_DEFAULT_VIDEO_URL))]
+        return [
+            Part.from_text(prompt),
+            Part(
+                type="video",
+                mime_type="video/mp4",
+                source=PartSourceUrl(url=_DEFAULT_VIDEO_URL),
+            ),
+        ]
     raise SystemExit(f"unknown input modality: {in_modality}")
 
 
@@ -631,17 +710,25 @@ def _probe_prompt(*, out_modality: str, in_modality: str | None) -> str:
     return "只回复：pong"
 
 
-def _output_spec_for_modality(*, provider: str, model_id: str, modality: str) -> OutputSpec:
+def _output_spec_for_modality(
+    *, provider: str, model_id: str, modality: str
+) -> OutputSpec:
     if modality == "embedding":
         return OutputSpec(modalities=["embedding"], embedding=OutputEmbeddingSpec())
     if modality == "image":
         return OutputSpec(modalities=["image"], image=OutputImageSpec(n=1))
     if modality == "audio":
         voice, language = _probe_audio_voice(provider=provider, model_id=model_id)
-        return OutputSpec(modalities=["audio"], audio=OutputAudioSpec(voice=voice, language=language, format="mp3"))
+        return OutputSpec(
+            modalities=["audio"],
+            audio=OutputAudioSpec(voice=voice, language=language, format="mp3"),
+        )
     if modality == "video":
         duration = _probe_video_duration(provider=provider, model_id=model_id)
-        return OutputSpec(modalities=["video"], video=OutputVideoSpec(duration_sec=duration, aspect_ratio="16:9"))
+        return OutputSpec(
+            modalities=["video"],
+            video=OutputVideoSpec(duration_sec=duration, aspect_ratio="16:9"),
+        )
     if modality == "text":
         return OutputSpec(modalities=["text"], text=OutputTextSpec(format="text"))
     raise SystemExit(f"unknown output modality: {modality}")
@@ -649,7 +736,11 @@ def _output_spec_for_modality(*, provider: str, model_id: str, modality: str) ->
 
 def _probe_audio_voice(*, provider: str, model_id: str) -> tuple[str, str | None]:
     mid_l = model_id.lower().strip()
-    if provider in {"google", "tuzi-google"} or mid_l.startswith(("gemini-", "gemma-")) or "native-audio" in mid_l:
+    if (
+        provider in {"google", "tuzi-google"}
+        or mid_l.startswith(("gemini-", "gemma-"))
+        or "native-audio" in mid_l
+    ):
         return ("Kore", "en-US")
     if provider == "aliyun":
         return ("Cherry", "zh-CN")
@@ -668,7 +759,11 @@ def _probe_video_duration(*, provider: str, model_id: str) -> int:
 
 
 def _probe_image_part() -> Part:
-    return Part(type="image", mime_type="image/png", source=PartSourceBytes(data=_probe_png_bytes()))
+    return Part(
+        type="image",
+        mime_type="image/png",
+        source=PartSourceBytes(data=_probe_png_bytes()),
+    )
 
 
 def _probe_png_bytes() -> bytes:
@@ -686,11 +781,21 @@ def _probe_png_bytes() -> bytes:
     def chunk(typ: bytes, data: bytes) -> bytes:
         crc = zlib.crc32(typ)
         crc = zlib.crc32(data, crc)
-        return struct.pack(">I", len(data)) + typ + data + struct.pack(">I", crc & 0xFFFFFFFF)
+        return (
+            struct.pack(">I", len(data))
+            + typ
+            + data
+            + struct.pack(">I", crc & 0xFFFFFFFF)
+        )
 
     signature = b"\x89PNG\r\n\x1a\n"
     ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
-    return signature + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+    return (
+        signature
+        + chunk(b"IHDR", ihdr)
+        + chunk(b"IDAT", compressed)
+        + chunk(b"IEND", b"")
+    )
 
 
 def _probe_wav_bytes() -> bytes:
@@ -721,7 +826,9 @@ def _validate_probe_response(resp, *, expected_out: str) -> None:
             raise SystemExit("missing text output part")
         return
     if expected_out == "embedding":
-        if not any(p.type == "embedding" and isinstance(p.embedding, list) for p in parts):
+        if not any(
+            p.type == "embedding" and isinstance(p.embedding, list) for p in parts
+        ):
             raise SystemExit("missing embedding output part")
         return
     if expected_out in {"image", "audio", "video"}:
@@ -741,7 +848,7 @@ def _probe_skip(label: str, reason: str) -> dict[str, int]:
     return {"ok": 0, "fail": 0, "skip": 1}
 
 
-def _probe_fail(label: str, err: Exception) -> dict[str, int]:
+def _probe_fail(label: str, err: BaseException) -> dict[str, int]:
     if isinstance(err, GenAIError):
         msg = f"{err.info.type}: {err.info.message}"
     else:
@@ -762,7 +869,9 @@ def _print_sdk_supported() -> None:
             inp = ",".join(m["input_modalities"])
             out = ",".join(m["output_modalities"])
             modes = ",".join(m["modes"])
-            print(f"{m['category']:13} {m['model']:45} modes={modes:18} in={inp:18} out={out:18}")
+            print(
+                f"{m['category']:13} {m['model']:45} modes={modes:18} in={inp:18} out={out:18}"
+            )
         print()
 
 
@@ -771,7 +880,9 @@ def _print_provider_models(provider: str, *, timeout_ms: int | None) -> None:
 
     client = Client()
     p = _normalize_provider(provider)
-    for model_id in sorted(client.list_provider_models(provider, timeout_ms=timeout_ms)):
+    for model_id in sorted(
+        client.list_provider_models(provider, timeout_ms=timeout_ms)
+    ):
         print(f"{p}:{model_id}")
 
 
@@ -849,7 +960,16 @@ def _print_unsupported(*, timeout_ms: int | None) -> None:
 
 def _print_mappings() -> None:
     items = get_parameter_mappings()
-    items = sorted(items, key=lambda x: (x["provider"], x["protocol"], x["operation"], x["from"], x["to"]))
+    items = sorted(
+        items,
+        key=lambda x: (
+            x["provider"],
+            x["protocol"],
+            x["operation"],
+            x["from"],
+            x["to"],
+        ),
+    )
     cur = None
     for m in items:
         key = (m["provider"], m["protocol"])
@@ -873,12 +993,14 @@ def _split_model(model: str) -> tuple[str, str]:
     return provider, model_id
 
 
-def _apply_protocol_override(client: Client, *, provider: str, protocol: str | None) -> None:
+def _apply_protocol_override(
+    client: Client, *, provider: str, protocol: str | None
+) -> None:
     if not protocol:
         return
     if provider != "openai":
         raise SystemExit("--protocol only applies to provider=openai")
-    if getattr(client, "_openai", None) is None:
+    if client._openai is None:
         raise SystemExit("NOUS_GENAI_OPENAI_API_KEY/OPENAI_API_KEY not configured")
     client._openai = replace(client._openai, chat_api=protocol)
 
@@ -905,7 +1027,10 @@ def _infer_output_spec(*, provider: str, model_id: str, cap) -> OutputSpec:
                 duration = 4
         if provider == "google" and model_id.lower().startswith("veo-"):
             duration = 5
-        return OutputSpec(modalities=["video"], video=OutputVideoSpec(duration_sec=duration, aspect_ratio="16:9"))
+        return OutputSpec(
+            modalities=["video"],
+            video=OutputVideoSpec(duration_sec=duration, aspect_ratio="16:9"),
+        )
     if "text" in out:
         return OutputSpec(modalities=["text"], text=OutputTextSpec(format="text"))
     raise SystemExit(f"cannot infer output for model={provider}:{model_id}")
@@ -931,22 +1056,30 @@ def _build_input_parts(
 
     if output_modalities == {"image"}:
         if audio_path or video_path:
-            raise SystemExit("image generation does not take --audio-path/--video-path input")
+            raise SystemExit(
+                "image generation does not take --audio-path/--video-path input"
+            )
         if image_path and "image" not in input_modalities:
-            raise SystemExit("image generation does not take --image-path input for this model")
+            raise SystemExit(
+                "image generation does not take --image-path input for this model"
+            )
         if not prompt:
             raise SystemExit("image generation requires --prompt")
 
     if output_modalities == {"audio"}:
         if image_path or audio_path or video_path:
-            raise SystemExit("TTS does not take --image-path/--audio-path/--video-path input")
+            raise SystemExit(
+                "TTS does not take --image-path/--audio-path/--video-path input"
+            )
         if not prompt:
             raise SystemExit("audio generation requires --prompt")
         return [Part.from_text(prompt)]
 
     if output_modalities == {"video"}:
         if image_path or audio_path or video_path:
-            raise SystemExit("video generation does not take --image-path/--audio-path/--video-path input")
+            raise SystemExit(
+                "video generation does not take --image-path/--audio-path/--video-path input"
+            )
         if not prompt:
             raise SystemExit("video generation requires --prompt")
         return [Part.from_text(prompt)]
@@ -954,7 +1087,9 @@ def _build_input_parts(
     parts: list[Part] = []
     if prompt:
         meta = {}
-        if provider == "openai" and (model_id == "whisper-1" or "-transcribe" in model_id):
+        if provider == "openai" and (
+            model_id == "whisper-1" or "-transcribe" in model_id
+        ):
             meta = {"transcription_prompt": True}
         parts.append(Part(type="text", text=prompt, meta=meta))
 
@@ -962,24 +1097,34 @@ def _build_input_parts(
         mime = detect_mime_type(image_path)
         if not mime or not mime.startswith("image/"):
             raise SystemExit(f"cannot detect image mime type for: {image_path}")
-        parts.append(Part(type="image", mime_type=mime, source=PartSourcePath(path=image_path)))
+        parts.append(
+            Part(type="image", mime_type=mime, source=PartSourcePath(path=image_path))
+        )
     if audio_path:
         mime = detect_mime_type(audio_path)
         if not mime or not mime.startswith("audio/"):
             raise SystemExit(f"cannot detect audio mime type for: {audio_path}")
-        parts.append(Part(type="audio", mime_type=mime, source=PartSourcePath(path=audio_path)))
+        parts.append(
+            Part(type="audio", mime_type=mime, source=PartSourcePath(path=audio_path))
+        )
     if video_path:
         mime = detect_mime_type(video_path)
         if not mime or not mime.startswith("video/"):
             raise SystemExit(f"cannot detect video mime type for: {video_path}")
-        parts.append(Part(type="video", mime_type=mime, source=PartSourcePath(path=video_path)))
+        parts.append(
+            Part(type="video", mime_type=mime, source=PartSourcePath(path=video_path))
+        )
 
     if not parts:
-        raise SystemExit("missing input: provide --prompt and/or --image-path/--audio-path/--video-path")
+        raise SystemExit(
+            "missing input: provide --prompt and/or --image-path/--audio-path/--video-path"
+        )
     return parts
 
 
-def _run_stream_text(client: Client, req: GenerateRequest, *, timeout_ms: int | None) -> str:
+def _run_stream_text(
+    client: Client, req: GenerateRequest, *, timeout_ms: int | None
+) -> str:
     if timeout_ms is not None:
         req = replace(req, params=replace(req.params, timeout_ms=timeout_ms))
     chunks: list[str] = []
@@ -1040,7 +1185,9 @@ def _download_with_headers(
     )
 
 
-def _download_auth(client: object, *, provider: str) -> tuple[dict[str, str], set[str]] | None:
+def _download_auth(
+    client: object, *, provider: str
+) -> tuple[dict[str, str], set[str]] | None:
     adapter_getter = getattr(client, "_adapter", None)
     if not callable(adapter_getter):
         return None
@@ -1124,23 +1271,34 @@ def _write_response(
             return
         if p.source.kind == "ref":
             if output_path:
-                raise SystemExit("cannot write ref output; provider-specific download required")
-            ref = f"{p.source.provider}:{p.source.id}" if p.source.provider else p.source.id
+                raise SystemExit(
+                    "cannot write ref output; provider-specific download required"
+                )
+            ref = (
+                f"{p.source.provider}:{p.source.id}"
+                if p.source.provider
+                else p.source.id
+            )
             print(ref)
             return
         if p.source.kind != "bytes":
             raise SystemExit(f"unsupported output source kind: {p.source.kind}")
+        data: bytes
         if p.source.encoding == "base64":
+            raw_b64 = p.source.data
+            if not isinstance(raw_b64, str) or not raw_b64:
+                raise SystemExit("invalid base64 output") from None
             try:
-                data = base64.b64decode(p.source.data)
+                data = base64.b64decode(raw_b64)
             except Exception:
                 raise SystemExit("invalid base64 output") from None
         else:
-            data = p.source.data
-        if isinstance(data, bytearray):
-            data = bytes(data)
-        if not isinstance(data, bytes):
-            raise SystemExit(f"invalid bytes output (encoding={p.source.encoding})")
+            raw = p.source.data
+            if isinstance(raw, bytearray):
+                raw = bytes(raw)
+            if not isinstance(raw, bytes):
+                raise SystemExit(f"invalid bytes output (encoding={p.source.encoding})")
+            data = raw
         path = output_path or f"genai_output{_guess_ext(p.mime_type)}"
         with open(path, "wb") as f:
             f.write(data)

@@ -18,7 +18,9 @@ class GenAIError(RuntimeError):
 
 
 def auth_error(message: str, provider_code: str | None = None) -> GenAIError:
-    return GenAIError(ErrorInfo(type="AuthError", message=message, provider_code=provider_code))
+    return GenAIError(
+        ErrorInfo(type="AuthError", message=message, provider_code=provider_code)
+    )
 
 
 def rate_limit_error(message: str, provider_code: str | None = None) -> GenAIError:
@@ -34,7 +36,9 @@ def rate_limit_error(message: str, provider_code: str | None = None) -> GenAIErr
 
 def invalid_request_error(message: str, provider_code: str | None = None) -> GenAIError:
     return GenAIError(
-        ErrorInfo(type="InvalidRequestError", message=message, provider_code=provider_code)
+        ErrorInfo(
+            type="InvalidRequestError", message=message, provider_code=provider_code
+        )
     )
 
 
@@ -46,8 +50,14 @@ def timeout_error(message: str) -> GenAIError:
     return GenAIError(ErrorInfo(type="TimeoutError", message=message, retryable=True))
 
 
-def provider_error(message: str, provider_code: str | None = None, retryable: bool = False) -> GenAIError:
+def provider_error(
+    message: str, provider_code: str | None = None, retryable: bool = False
+) -> GenAIError:
     return GenAIError(
-        ErrorInfo(type="ProviderError", message=message, provider_code=provider_code, retryable=retryable)
+        ErrorInfo(
+            type="ProviderError",
+            message=message,
+            provider_code=provider_code,
+            retryable=retryable,
+        )
     )
-

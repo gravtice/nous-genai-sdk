@@ -35,4 +35,3 @@ class TestTuziGeminiMarkdownImage(unittest.TestCase):
         self.assertEqual([p.type for p in parts], ["text", "image"])
         self.assertIn("prefix", parts[0].text or "")
         self.assertIn("suffix", parts[0].text or "")
-

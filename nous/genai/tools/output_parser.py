@@ -5,7 +5,15 @@ from typing import Any
 from .._internal.errors import invalid_request_error, not_supported_error
 from .._internal.json_schema import normalize_json_schema
 from ..client import Client
-from ..types import GenerateRequest, GenerateResponse, Message, OutputSpec, Part, Tool, ToolChoice
+from ..types import (
+    GenerateRequest,
+    GenerateResponse,
+    Message,
+    OutputSpec,
+    Part,
+    Tool,
+    ToolChoice,
+)
 
 DEFAULT_OUTPUT_PARSER_TOOL_NAME = "nous_output_parser"
 
@@ -64,9 +72,13 @@ def extract_output_from_response(
                 continue
             arguments = part.meta.get("arguments")
             if not isinstance(arguments, dict):
-                raise invalid_request_error("output parser tool_call arguments must be an object")
+                raise invalid_request_error(
+                    "output parser tool_call arguments must be an object"
+                )
             if _DEFAULT_WRAPPER_KEY not in arguments:
-                raise invalid_request_error(f"output parser tool_call missing '{_DEFAULT_WRAPPER_KEY}'")
+                raise invalid_request_error(
+                    f"output parser tool_call missing '{_DEFAULT_WRAPPER_KEY}'"
+                )
             return arguments[_DEFAULT_WRAPPER_KEY]
 
     raise invalid_request_error(f"missing output parser tool_call: {name}")
@@ -92,8 +104,7 @@ def parse_output(
     tool = build_output_parser_tool(json_schema, name=tool_name)
     prompt = (
         "Convert the following text into structured output by calling the tool. "
-        "Call the tool only; do not output any other text.\n\n"
-        + text.strip()
+        "Call the tool only; do not output any other text.\n\n" + text.strip()
     )
     req = GenerateRequest(
         model=model,

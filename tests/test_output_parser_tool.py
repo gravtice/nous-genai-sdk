@@ -8,7 +8,9 @@ class TestOutputParserTool(unittest.TestCase):
         from nous.genai._internal.errors import GenAIError
         from nous.genai.tools.output_parser import build_output_parser_tool
 
-        tool = build_output_parser_tool({"type": "object", "properties": {"a": {"type": "integer"}}})
+        tool = build_output_parser_tool(
+            {"type": "object", "properties": {"a": {"type": "integer"}}}
+        )
         self.assertIsInstance(tool.parameters, dict)
 
         try:
@@ -76,7 +78,9 @@ class TestOutputParserTool(unittest.TestCase):
             provider="dummy",
             model="dummy:demo",
             status="completed",
-            output=[Message(role="assistant", content=[Part.from_text("no tool call")])],
+            output=[
+                Message(role="assistant", content=[Part.from_text("no tool call")])
+            ],
         )
         with self.assertRaises(GenAIError):
             extract_output_from_response(resp2)
@@ -84,7 +88,13 @@ class TestOutputParserTool(unittest.TestCase):
     def test_parse_output(self) -> None:
         from nous.genai._internal.errors import GenAIError
         from nous.genai.tools.output_parser import parse_output
-        from nous.genai.types import Capability, GenerateRequest, GenerateResponse, Message, Part
+        from nous.genai.types import (
+            Capability,
+            GenerateRequest,
+            GenerateResponse,
+            Message,
+            Part,
+        )
 
         class DummyClient:
             def __init__(self, *, supports_tools: bool) -> None:
@@ -121,7 +131,11 @@ class TestOutputParserTool(unittest.TestCase):
                     ],
                 )
 
-        schema = {"type": "object", "properties": {"a": {"type": "integer"}}, "required": ["a"]}
+        schema = {
+            "type": "object",
+            "properties": {"a": {"type": "integer"}},
+            "required": ["a"],
+        }
         c = DummyClient(supports_tools=True)
         out = parse_output(c, model="dummy:demo", text="hello", json_schema=schema)
         self.assertEqual(out, {"a": 1})
@@ -129,7 +143,9 @@ class TestOutputParserTool(unittest.TestCase):
         assert c.last_request is not None
         self.assertEqual(c.last_request.tool_choice.mode, "tool")
         self.assertEqual(c.last_request.tool_choice.name, "nous_output_parser")
-        self.assertTrue(c.last_request.input[0].content[0].require_text().endswith("hello"))
+        self.assertTrue(
+            c.last_request.input[0].content[0].require_text().endswith("hello")
+        )
 
         with self.assertRaises(GenAIError) as ctx:
             parse_output(c, model="dummy:demo", text="   ", json_schema=schema)

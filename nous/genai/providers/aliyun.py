@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from typing import Any, Iterator
 from uuid import uuid4
 
-from .._internal.errors import invalid_request_error, not_supported_error, provider_error
+from .._internal.errors import (
+    invalid_request_error,
+    not_supported_error,
+    provider_error,
+)
 from .._internal.http import request_json
 from ..types import Capability, GenerateEvent, GenerateRequest, GenerateResponse
 from ..types import JobInfo, Message, Part, PartSourceBytes, PartSourceUrl
@@ -86,7 +90,9 @@ class AliyunAdapter:
     def list_models(self, *, timeout_ms: int | None = None) -> list[str]:
         return self.openai.list_models(timeout_ms=timeout_ms)
 
-    def generate(self, request: GenerateRequest, *, stream: bool) -> GenerateResponse | Iterator[GenerateEvent]:
+    def generate(
+        self, request: GenerateRequest, *, stream: bool
+    ) -> GenerateResponse | Iterator[GenerateEvent]:
         modalities = set(request.output.modalities)
         model_id = request.model_id()
 
@@ -97,36 +103,56 @@ class AliyunAdapter:
 
         if modalities == {"image"}:
             if stream:
-                raise not_supported_error("Aliyun image generation does not support streaming")
+                raise not_supported_error(
+                    "Aliyun image generation does not support streaming"
+                )
             return self._image(request, model_id=model_id)
 
         if modalities == {"video"}:
             if stream:
-                raise not_supported_error("Aliyun video generation does not support streaming")
+                raise not_supported_error(
+                    "Aliyun video generation does not support streaming"
+                )
             return self._video(request, model_id=model_id)
 
         if modalities == {"audio"}:
             if stream:
-                raise not_supported_error("Aliyun speech synthesis does not support streaming")
+                raise not_supported_error(
+                    "Aliyun speech synthesis does not support streaming"
+                )
             return self._audio(request, model_id=model_id)
 
         if modalities != {"text"}:
-            raise not_supported_error("Aliyun only supports chat/embeddings/image/video/audio in this SDK")
+            raise not_supported_error(
+                "Aliyun only supports chat/embeddings/image/video/audio in this SDK"
+            )
         if _is_embedding_model(model_id):
-            raise not_supported_error("Aliyun embedding models must be called with output.modalities=['embedding']")
+            raise not_supported_error(
+                "Aliyun embedding models must be called with output.modalities=['embedding']"
+            )
         if _is_speech_synthesis_model(model_id):
-            raise not_supported_error("Aliyun speech synthesis models must be called with output.modalities=['audio']")
+            raise not_supported_error(
+                "Aliyun speech synthesis models must be called with output.modalities=['audio']"
+            )
         if _is_image_generation_model(model_id):
-            raise not_supported_error("Aliyun image models must be called with output.modalities=['image']")
+            raise not_supported_error(
+                "Aliyun image models must be called with output.modalities=['image']"
+            )
         if _is_video_generation_model(model_id):
-            raise not_supported_error("Aliyun video models must be called with output.modalities=['video']")
+            raise not_supported_error(
+                "Aliyun video models must be called with output.modalities=['video']"
+            )
         if _has_audio_input(request) and not _is_asr_model(model_id):
-            raise not_supported_error("Aliyun chat input only supports audio for ASR models in this SDK")
+            raise not_supported_error(
+                "Aliyun chat input only supports audio for ASR models in this SDK"
+            )
         return self.openai.generate(request, stream=stream)
 
     def _image(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
         if not _is_image_generation_model(model_id):
-            raise not_supported_error('Aliyun image generation requires model like "aliyun:qwen-image-max"')
+            raise not_supported_error(
+                'Aliyun image generation requires model like "aliyun:qwen-image-max"'
+            )
 
         prompt = _single_text_prompt(request)
         body: dict[str, Any] = {
@@ -180,14 +206,20 @@ class AliyunAdapter:
 
     def _audio(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
         if not _is_speech_synthesis_model(model_id):
-            raise not_supported_error('Aliyun speech synthesis requires model like "aliyun:qwen3-tts-flash"')
+            raise not_supported_error(
+                'Aliyun speech synthesis requires model like "aliyun:qwen3-tts-flash"'
+            )
 
         prompt = _single_text_prompt(request)
         audio = request.output.audio
         if audio is None or not audio.voice:
-            raise invalid_request_error("output.audio.voice required for Aliyun speech synthesis")
+            raise invalid_request_error(
+                "output.audio.voice required for Aliyun speech synthesis"
+            )
         if audio.format and audio.format.strip().lower() not in {"wav", "wave"}:
-            raise not_supported_error("Aliyun speech synthesis only supports wav output in this SDK")
+            raise not_supported_error(
+                "Aliyun speech synthesis only supports wav output in this SDK"
+            )
 
         body: dict[str, Any] = {
             "model": model_id,
@@ -225,7 +257,9 @@ class AliyunAdapter:
 
     def _video(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
         if not _is_video_generation_model(model_id):
-            raise not_supported_error('Aliyun video generation requires model like "aliyun:wan2.5-t2v-preview"')
+            raise not_supported_error(
+                'Aliyun video generation requires model like "aliyun:wan2.5-t2v-preview"'
+            )
 
         prompt = _single_text_prompt(request)
         body: dict[str, Any] = {"model": model_id, "input": {"prompt": prompt}}
@@ -240,12 +274,17 @@ class AliyunAdapter:
         if isinstance(opts, dict):
             _merge_provider_options(body=body, opts=opts)
 
-        budget_ms = 120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        budget_ms = (
+            120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        )
         deadline = time.time() + max(1, budget_ms) / 1000.0
         obj = request_json(
             method="POST",
             url="https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis",
-            headers={**_aliyun_headers(self.openai.api_key, request=request), "X-DashScope-Async": "enable"},
+            headers={
+                **_aliyun_headers(self.openai.api_key, request=request),
+                "X-DashScope-Async": "enable",
+            },
             json_body=body,
             timeout_ms=min(30_000, max(1, budget_ms)),
             proxy_url=self.openai.proxy_url,
@@ -284,7 +323,9 @@ class AliyunAdapter:
         video_url = _extract_video_url(final)
         if not video_url:
             raise provider_error("aliyun video task missing video_url")
-        part = Part(type="video", mime_type="video/mp4", source=PartSourceUrl(url=video_url))
+        part = Part(
+            type="video", mime_type="video/mp4", source=PartSourceUrl(url=video_url)
+        )
         return GenerateResponse(
             id=f"sdk_{uuid4().hex}",
             provider="aliyun",
@@ -331,7 +372,9 @@ def _single_text_prompt(request: GenerateRequest) -> str:
     for m in request.input:
         for p in m.content:
             if p.type != "text":
-                raise invalid_request_error("this operation requires exactly one text part")
+                raise invalid_request_error(
+                    "this operation requires exactly one text part"
+                )
             t = p.require_text().strip()
             if t:
                 texts.append(t)
@@ -349,7 +392,9 @@ def _map_language_type(language: str) -> str:
     return language
 
 
-def _aliyun_headers(api_key: str, *, request: GenerateRequest | None = None) -> dict[str, str]:
+def _aliyun_headers(
+    api_key: str, *, request: GenerateRequest | None = None
+) -> dict[str, str]:
     headers = {"Authorization": f"Bearer {api_key}"}
     if request and request.params.idempotency_key:
         headers["Idempotency-Key"] = request.params.idempotency_key
@@ -367,17 +412,23 @@ def _merge_provider_options(*, body: dict[str, Any], opts: dict[str, Any]) -> No
             raise invalid_request_error("internal error: body.input is not an object")
         for k, v in opts["input"].items():
             if k in inp:
-                raise invalid_request_error(f"provider_options cannot override input.{k}")
+                raise invalid_request_error(
+                    f"provider_options cannot override input.{k}"
+                )
             inp[k] = v
     if "parameters" in opts:
         if not isinstance(opts["parameters"], dict):
             raise invalid_request_error("provider_options.parameters must be an object")
         params = body.setdefault("parameters", {})
         if not isinstance(params, dict):
-            raise invalid_request_error("internal error: body.parameters is not an object")
+            raise invalid_request_error(
+                "internal error: body.parameters is not an object"
+            )
         for k, v in opts["parameters"].items():
             if k in params:
-                raise invalid_request_error(f"provider_options cannot override parameters.{k}")
+                raise invalid_request_error(
+                    f"provider_options cannot override parameters.{k}"
+                )
             params[k] = v
     for k, v in opts.items():
         if k in {"model", "input", "parameters"}:
@@ -412,7 +463,9 @@ def _extract_image_url(obj: dict[str, Any]) -> str | None:
     return None
 
 
-def _extract_audio_source(obj: dict[str, Any]) -> tuple[PartSourceBytes | PartSourceUrl, str]:
+def _extract_audio_source(
+    obj: dict[str, Any],
+) -> tuple[PartSourceBytes | PartSourceUrl, str]:
     output = obj.get("output")
     if not isinstance(output, dict):
         raise provider_error("aliyun audio response missing output")
@@ -460,7 +513,9 @@ def _extract_video_url(obj: dict[str, Any]) -> str | None:
     return None
 
 
-def _wait_task_done(*, task_id: str, api_key: str, deadline: float, proxy_url: str | None) -> dict[str, Any]:
+def _wait_task_done(
+    *, task_id: str, api_key: str, deadline: float, proxy_url: str | None
+) -> dict[str, Any]:
     url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
     while True:
         remaining_ms = int((deadline - time.time()) * 1000)

@@ -13,7 +13,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from nous.genai import (
+from nous.genai import (  # noqa: E402
     Client,
     GenAIError,
     GenerateParams,
@@ -25,7 +25,10 @@ from nous.genai import (
     OutputVideoSpec,
     Part,
 )
-from nous.genai.reference import get_sdk_supported_models_for_provider, get_supported_providers
+from nous.genai.reference import (  # noqa: E402
+    get_sdk_supported_models_for_provider,
+    get_supported_providers,
+)
 
 
 def _is_configured(client: Client, provider: str) -> bool:
@@ -61,7 +64,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _probe_stream(client: Client, model: str, *, timeout_ms: int) -> tuple[bool, str | None]:
+def _probe_stream(
+    client: Client, model: str, *, timeout_ms: int
+) -> tuple[bool, str | None]:
     req = GenerateRequest(
         model=model,
         input=[Message(role="user", content=[Part.from_text("Only reply: OK")])],
@@ -81,7 +86,9 @@ def _probe_stream(client: Client, model: str, *, timeout_ms: int) -> tuple[bool,
         return False, f"{type(e).__name__}: {e}"
 
 
-def _probe_job_text(client: Client, model: str, *, timeout_ms: int) -> tuple[bool, str | None]:
+def _probe_job_text(
+    client: Client, model: str, *, timeout_ms: int
+) -> tuple[bool, str | None]:
     req = GenerateRequest(
         model=model,
         input=[Message(role="user", content=[Part.from_text("Only reply: OK")])],
@@ -102,11 +109,15 @@ def _probe_job_text(client: Client, model: str, *, timeout_ms: int) -> tuple[boo
         return False, f"{type(e).__name__}: {e}"
 
 
-def _probe_job_audio(client: Client, model: str, *, timeout_ms: int) -> tuple[bool, str | None]:
+def _probe_job_audio(
+    client: Client, model: str, *, timeout_ms: int
+) -> tuple[bool, str | None]:
     req = GenerateRequest(
         model=model,
         input=[Message(role="user", content=[Part.from_text("Say OK.")])],
-        output=OutputSpec(modalities=["audio"], audio=OutputAudioSpec(voice="alloy", format="mp3")),
+        output=OutputSpec(
+            modalities=["audio"], audio=OutputAudioSpec(voice="alloy", format="mp3")
+        ),
         params=GenerateParams(timeout_ms=timeout_ms),
         wait=False,
     )
@@ -140,7 +151,11 @@ def _probe_job_video(
 
     req = GenerateRequest(
         model=model,
-        input=[Message(role="user", content=[Part.from_text("A short video of a red square.")])],
+        input=[
+            Message(
+                role="user", content=[Part.from_text("A short video of a red square.")]
+            )
+        ],
         output=OutputSpec(
             modalities=["video"],
             video=OutputVideoSpec(duration_sec=duration_sec, aspect_ratio="16:9"),
@@ -180,7 +195,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         providers = [p for p in supported if _is_configured(client, p)]
     if not providers:
-        raise SystemExit("no configured providers found (check .env.local and NOUS_GENAI_*_API_KEY)")
+        raise SystemExit(
+            "no configured providers found (check .env.local and NOUS_GENAI_*_API_KEY)"
+        )
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     out_dir = Path("build")
@@ -211,18 +228,26 @@ def main(argv: list[str] | None = None) -> int:
                 stream_ok = None
                 stream_error = None
                 if "text" in row["output_modalities"]:
-                    stream_ok, stream_error = _probe_stream(client, model, timeout_ms=20_000)
+                    stream_ok, stream_error = _probe_stream(
+                        client, model, timeout_ms=20_000
+                    )
 
                 job_ok = None
                 job_error = None
                 if expected_job:
                     out_mods = set(row["output_modalities"])
                     if out_mods == {"video"}:
-                        job_ok, job_error = _probe_job_video(client, model, timeout_ms=60_000, video_duration_sec=4)
+                        job_ok, job_error = _probe_job_video(
+                            client, model, timeout_ms=60_000, video_duration_sec=4
+                        )
                     elif out_mods == {"audio"}:
-                        job_ok, job_error = _probe_job_audio(client, model, timeout_ms=60_000)
+                        job_ok, job_error = _probe_job_audio(
+                            client, model, timeout_ms=60_000
+                        )
                     elif out_mods == {"text"}:
-                        job_ok, job_error = _probe_job_text(client, model, timeout_ms=60_000)
+                        job_ok, job_error = _probe_job_text(
+                            client, model, timeout_ms=60_000
+                        )
 
                 suggested_override: dict[str, bool] = {}
                 if stream_ok is True and not expected_stream:
@@ -270,7 +295,9 @@ def main(argv: list[str] | None = None) -> int:
         "seconds": round(time.time() - t0, 3),
         "report_path": str(report_path),
     }
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     print(f"Wrote: {report_path}")
     print(f"Wrote: {summary_path}")

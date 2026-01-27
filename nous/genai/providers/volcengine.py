@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from typing import Any, Iterator
 from uuid import uuid4
 
-from .._internal.errors import invalid_request_error, not_supported_error, provider_error
+from .._internal.errors import (
+    invalid_request_error,
+    not_supported_error,
+    provider_error,
+)
 from .._internal.http import request_json
 from ..types import Capability, GenerateEvent, GenerateRequest, GenerateResponse
 from ..types import JobInfo, Message, Part, PartSourceUrl
@@ -66,27 +70,39 @@ class VolcengineAdapter:
     def list_models(self, *, timeout_ms: int | None = None) -> list[str]:
         return self.openai.list_models(timeout_ms=timeout_ms)
 
-    def generate(self, request: GenerateRequest, *, stream: bool) -> GenerateResponse | Iterator[GenerateEvent]:
+    def generate(
+        self, request: GenerateRequest, *, stream: bool
+    ) -> GenerateResponse | Iterator[GenerateEvent]:
         modalities = set(request.output.modalities)
         model_id = request.model_id()
 
         if modalities == {"embedding"}:
             if stream:
-                raise not_supported_error("Volcengine embeddings do not support streaming")
+                raise not_supported_error(
+                    "Volcengine embeddings do not support streaming"
+                )
             if not _is_text_embedding_model(model_id):
-                raise not_supported_error("Volcengine embedding requires a text embedding model")
+                raise not_supported_error(
+                    "Volcengine embedding requires a text embedding model"
+                )
             return self.openai.generate(request, stream=False)
 
         if modalities == {"image"}:
             if stream:
-                raise not_supported_error("Volcengine image generation does not support streaming")
+                raise not_supported_error(
+                    "Volcengine image generation does not support streaming"
+                )
             if not _is_seedream_model(model_id):
-                raise not_supported_error("Volcengine image generation requires a Seedream model")
+                raise not_supported_error(
+                    "Volcengine image generation requires a Seedream model"
+                )
             return self.openai.generate(request, stream=False)
 
         if modalities == {"video"}:
             if stream:
-                raise not_supported_error("Volcengine video generation does not support streaming")
+                raise not_supported_error(
+                    "Volcengine video generation does not support streaming"
+                )
             return self._video(request, model_id=model_id)
 
         if modalities != {"text"}:
@@ -94,13 +110,21 @@ class VolcengineAdapter:
                 "Volcengine only supports text chat, embeddings, Seedream images, and Seedance video in this SDK"
             )
         if _is_text_embedding_model(model_id):
-            raise not_supported_error("Volcengine embedding models must be called with output.modalities=['embedding']")
+            raise not_supported_error(
+                "Volcengine embedding models must be called with output.modalities=['embedding']"
+            )
         if _is_seedream_model(model_id):
-            raise not_supported_error("Volcengine Seedream models must be called with output.modalities=['image']")
+            raise not_supported_error(
+                "Volcengine Seedream models must be called with output.modalities=['image']"
+            )
         if _is_seedance_video_model(model_id):
-            raise not_supported_error("Volcengine Seedance models must be called with output.modalities=['video']")
+            raise not_supported_error(
+                "Volcengine Seedance models must be called with output.modalities=['video']"
+            )
         if _has_audio_input(request):
-            raise not_supported_error("Volcengine chat input does not support audio in this SDK")
+            raise not_supported_error(
+                "Volcengine chat input does not support audio in this SDK"
+            )
         return self.openai.generate(request, stream=stream)
 
     def _video(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
@@ -110,7 +134,10 @@ class VolcengineAdapter:
             )
 
         prompt = _single_text_prompt(request)
-        body: dict[str, Any] = {"model": model_id, "content": [{"type": "text", "text": prompt}]}
+        body: dict[str, Any] = {
+            "model": model_id,
+            "content": [{"type": "text", "text": prompt}],
+        }
 
         opts = request.provider_options.get("volcengine")
         if isinstance(opts, dict):
@@ -118,7 +145,9 @@ class VolcengineAdapter:
                 raise invalid_request_error("provider_options cannot override model")
             body.update({k: v for k, v in opts.items() if k != "model"})
 
-        budget_ms = 120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        budget_ms = (
+            120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        )
         deadline = time.time() + max(1, budget_ms) / 1000.0
         obj = request_json(
             method="POST",
@@ -164,7 +193,9 @@ class VolcengineAdapter:
         video_url = content.get("video_url") if isinstance(content, dict) else None
         if not isinstance(video_url, str) or not video_url:
             raise provider_error("volcengine video task missing video_url")
-        part = Part(type="video", mime_type="video/mp4", source=PartSourceUrl(url=video_url))
+        part = Part(
+            type="video", mime_type="video/mp4", source=PartSourceUrl(url=video_url)
+        )
         return GenerateResponse(
             id=f"sdk_{uuid4().hex}",
             provider="volcengine",
@@ -194,7 +225,9 @@ def _single_text_prompt(request: GenerateRequest) -> str:
     for m in request.input:
         for p in m.content:
             if p.type != "text":
-                raise invalid_request_error("this operation requires exactly one text part")
+                raise invalid_request_error(
+                    "this operation requires exactly one text part"
+                )
             t = p.require_text().strip()
             if t:
                 texts.append(t)

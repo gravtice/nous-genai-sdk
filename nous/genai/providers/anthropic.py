@@ -7,7 +7,11 @@ from typing import Any, Iterator, Literal
 from uuid import uuid4
 
 from .._internal.capability_rules import claude_input_modalities
-from .._internal.errors import invalid_request_error, not_supported_error, provider_error
+from .._internal.errors import (
+    invalid_request_error,
+    not_supported_error,
+    provider_error,
+)
 from .._internal.http import download_to_tempfile, request_json, request_stream_json_sse
 from ..types import (
     Capability,
@@ -89,11 +93,18 @@ class AnthropicAdapter:
                 out.append(mid)
         return sorted(set(out))
 
-    def generate(self, request: GenerateRequest, *, stream: bool) -> GenerateResponse | Iterator[GenerateEvent]:
+    def generate(
+        self, request: GenerateRequest, *, stream: bool
+    ) -> GenerateResponse | Iterator[GenerateEvent]:
         if set(request.output.modalities) != {"text"}:
             raise not_supported_error("Anthropic only supports text output in this SDK")
-        if request.output.text and (request.output.text.format != "text" or request.output.text.json_schema is not None):
-            raise not_supported_error("Anthropic json output is not supported in this SDK")
+        if request.output.text and (
+            request.output.text.format != "text"
+            or request.output.text.json_schema is not None
+        ):
+            raise not_supported_error(
+                "Anthropic json output is not supported in this SDK"
+            )
         if request.params.seed is not None:
             raise not_supported_error("Anthropic does not support seed in this SDK")
         if stream:
@@ -149,12 +160,16 @@ class AnthropicAdapter:
                     if isinstance(delta, dict) and delta.get("type") == "text_delta":
                         text = delta.get("text")
                         if isinstance(text, str) and text:
-                            yield GenerateEvent(type="output.text.delta", data={"delta": text})
+                            yield GenerateEvent(
+                                type="output.text.delta", data={"delta": text}
+                            )
             yield GenerateEvent(type="done", data={})
 
         return _iter()
 
-    def _messages_body(self, request: GenerateRequest, *, stream: bool) -> dict[str, Any]:
+    def _messages_body(
+        self, request: GenerateRequest, *, stream: bool
+    ) -> dict[str, Any]:
         model_id = request.model_id()
         max_tokens = _max_tokens(request)
         system = _extract_system_text(request)
@@ -166,23 +181,43 @@ class AnthropicAdapter:
             if m.role not in {"user", "assistant", "tool"}:
                 raise not_supported_error(f"Anthropic does not support role: {m.role}")
             if m.role == "user" and any(p.type == "tool_result" for p in m.content):
-                raise invalid_request_error("tool_result parts must be sent as role='tool' for Anthropic")
+                raise invalid_request_error(
+                    "tool_result parts must be sent as role='tool' for Anthropic"
+                )
             if m.role == "user" and any(p.type == "tool_call" for p in m.content):
-                raise invalid_request_error("tool_call parts are only allowed in assistant messages")
-            if m.role == "assistant" and any(p.type == "tool_result" for p in m.content):
-                raise invalid_request_error("tool_result parts must be sent as role='tool' for Anthropic")
+                raise invalid_request_error(
+                    "tool_call parts are only allowed in assistant messages"
+                )
+            if m.role == "assistant" and any(
+                p.type == "tool_result" for p in m.content
+            ):
+                raise invalid_request_error(
+                    "tool_result parts must be sent as role='tool' for Anthropic"
+                )
             if m.role == "tool" and any(p.type != "tool_result" for p in m.content):
-                raise invalid_request_error("tool messages may only contain tool_result parts")
+                raise invalid_request_error(
+                    "tool messages may only contain tool_result parts"
+                )
             blocks = [
-                _part_to_block(p, timeout_ms=request.params.timeout_ms, proxy_url=self.proxy_url) for p in m.content
+                _part_to_block(
+                    p, timeout_ms=request.params.timeout_ms, proxy_url=self.proxy_url
+                )
+                for p in m.content
             ]
             role = "user" if m.role == "tool" else m.role
             messages.append({"role": role, "content": blocks})
 
         if not messages:
-            raise invalid_request_error("request.input must contain at least one non-system message")
+            raise invalid_request_error(
+                "request.input must contain at least one non-system message"
+            )
 
-        body: dict[str, Any] = {"model": model_id, "max_tokens": max_tokens, "messages": messages, "stream": stream}
+        body: dict[str, Any] = {
+            "model": model_id,
+            "max_tokens": max_tokens,
+            "messages": messages,
+            "stream": stream,
+        }
         if system:
             body["system"] = system
 
@@ -205,7 +240,9 @@ class AnthropicAdapter:
                     raise invalid_request_error("tool.name must be non-empty")
                 tool_obj: dict[str, Any] = {
                     "name": name,
-                    "input_schema": t.parameters if t.parameters is not None else {"type": "object"},
+                    "input_schema": t.parameters
+                    if t.parameters is not None
+                    else {"type": "object"},
                 }
                 if isinstance(t.description, str) and t.description.strip():
                     tool_obj["description"] = t.description.strip()
@@ -227,7 +264,9 @@ class AnthropicAdapter:
         if isinstance(opts, dict):
             for k, v in opts.items():
                 if k in body:
-                    raise invalid_request_error(f"provider_options cannot override body.{k}")
+                    raise invalid_request_error(
+                        f"provider_options cannot override body.{k}"
+                    )
                 body[k] = v
         return body
 
@@ -251,8 +290,18 @@ class AnthropicAdapter:
                 tool_use_id = item.get("id")
                 name = item.get("name")
                 tool_input = item.get("input")
-                if isinstance(tool_use_id, str) and tool_use_id and isinstance(name, str) and name and isinstance(tool_input, dict):
-                    parts.append(Part.tool_call(tool_call_id=tool_use_id, name=name, arguments=tool_input))
+                if (
+                    isinstance(tool_use_id, str)
+                    and tool_use_id
+                    and isinstance(name, str)
+                    and name
+                    and isinstance(tool_input, dict)
+                ):
+                    parts.append(
+                        Part.tool_call(
+                            tool_call_id=tool_use_id, name=name, arguments=tool_input
+                        )
+                    )
 
         usage_obj = obj.get("usage")
         usage = None
@@ -260,17 +309,26 @@ class AnthropicAdapter:
             usage = Usage(
                 input_tokens=usage_obj.get("input_tokens"),
                 output_tokens=usage_obj.get("output_tokens"),
-                total_tokens=usage_obj.get("input_tokens", 0) + usage_obj.get("output_tokens", 0)
-                if isinstance(usage_obj.get("input_tokens"), int) and isinstance(usage_obj.get("output_tokens"), int)
+                total_tokens=usage_obj.get("input_tokens", 0)
+                + usage_obj.get("output_tokens", 0)
+                if isinstance(usage_obj.get("input_tokens"), int)
+                and isinstance(usage_obj.get("output_tokens"), int)
                 else None,
             )
 
+        raw_id = obj.get("id")
+        resp_id = raw_id if isinstance(raw_id, str) and raw_id else f"sdk_{uuid4().hex}"
+
         return GenerateResponse(
-            id=obj.get("id") if isinstance(obj.get("id"), str) else f"sdk_{uuid4().hex}",
+            id=resp_id,
             provider=self.provider_name,
             model=f"{self.provider_name}:{model_id}",
             status="completed",
-            output=[Message(role="assistant", content=parts if parts else [Part.from_text("")])],
+            output=[
+                Message(
+                    role="assistant", content=parts if parts else [Part.from_text("")]
+                )
+            ],
             usage=usage,
         )
 
@@ -284,7 +342,9 @@ def _max_tokens(request: GenerateRequest) -> int:
     return 1024
 
 
-def _thinking_param(request: GenerateRequest, *, max_tokens: int) -> dict[str, Any] | None:
+def _thinking_param(
+    request: GenerateRequest, *, max_tokens: int
+) -> dict[str, Any] | None:
     reasoning = request.params.reasoning
     if reasoning is None:
         return None
@@ -318,7 +378,9 @@ def _extract_system_text(request: GenerateRequest) -> str | None:
     return "\n\n".join(chunks)
 
 
-def _part_to_block(part: Part, *, timeout_ms: int | None, proxy_url: str | None) -> dict[str, Any]:
+def _part_to_block(
+    part: Part, *, timeout_ms: int | None, proxy_url: str | None
+) -> dict[str, Any]:
     if part.type == "text":
         return {"type": "text", "text": part.require_text()}
     if part.type == "tool_call":
@@ -326,25 +388,48 @@ def _part_to_block(part: Part, *, timeout_ms: int | None, proxy_url: str | None)
         name = part.meta.get("name")
         arguments = part.meta.get("arguments")
         if not isinstance(tool_call_id, str) or not tool_call_id:
-            raise invalid_request_error("tool_call.meta.tool_call_id required for Anthropic tool_use")
+            raise invalid_request_error(
+                "tool_call.meta.tool_call_id required for Anthropic tool_use"
+            )
         if not isinstance(name, str) or not name.strip():
-            raise invalid_request_error("tool_call.meta.name must be a non-empty string")
+            raise invalid_request_error(
+                "tool_call.meta.name must be a non-empty string"
+            )
         if not isinstance(arguments, dict):
-            raise invalid_request_error("Anthropic tool_call.meta.arguments must be an object")
-        return {"type": "tool_use", "id": tool_call_id, "name": name.strip(), "input": arguments}
+            raise invalid_request_error(
+                "Anthropic tool_call.meta.arguments must be an object"
+            )
+        return {
+            "type": "tool_use",
+            "id": tool_call_id,
+            "name": name.strip(),
+            "input": arguments,
+        }
     if part.type == "tool_result":
         tool_call_id = part.meta.get("tool_call_id")
         name = part.meta.get("name")
         result = part.meta.get("result")
         is_error = part.meta.get("is_error")
         if not isinstance(tool_call_id, str) or not tool_call_id:
-            raise invalid_request_error("tool_result.meta.tool_call_id required for Anthropic tool_result")
+            raise invalid_request_error(
+                "tool_result.meta.tool_call_id required for Anthropic tool_result"
+            )
         if not isinstance(name, str) or not name.strip():
-            raise invalid_request_error("tool_result.meta.name must be a non-empty string")
+            raise invalid_request_error(
+                "tool_result.meta.name must be a non-empty string"
+            )
         if is_error is not None and not isinstance(is_error, bool):
             raise invalid_request_error("tool_result.meta.is_error must be a bool")
-        out = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, separators=(",", ":"))
-        block: dict[str, Any] = {"type": "tool_result", "tool_use_id": tool_call_id, "content": out}
+        out = (
+            result
+            if isinstance(result, str)
+            else json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+        )
+        block: dict[str, Any] = {
+            "type": "tool_result",
+            "tool_use_id": tool_call_id,
+            "content": out,
+        }
         if is_error is not None:
             block["is_error"] = is_error
         return block
@@ -375,16 +460,20 @@ def _part_to_block(part: Part, *, timeout_ms: int | None, proxy_url: str | None)
             data = file_to_bytes(source.path, _INLINE_BYTES_LIMIT)
             data_b64 = bytes_to_base64(data)
         elif isinstance(source, PartSourceBytes) and source.encoding == "base64":
-            data_b64 = source.data
-            if not isinstance(data_b64, str) or not data_b64:
+            raw_b64 = source.data
+            if not isinstance(raw_b64, str) or not raw_b64:
                 raise invalid_request_error("image base64 data must be non-empty")
+            data_b64 = raw_b64
         else:
             assert isinstance(source, PartSourceBytes)
-            data = source.data
-            if not isinstance(data, bytes):
+            raw = source.data
+            if not isinstance(raw, bytes):
                 raise invalid_request_error("image bytes data must be bytes")
+            data = raw
             if len(data) > _INLINE_BYTES_LIMIT:
-                raise not_supported_error(f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})")
+                raise not_supported_error(
+                    f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})"
+                )
             data_b64 = bytes_to_base64(data)
 
         return {

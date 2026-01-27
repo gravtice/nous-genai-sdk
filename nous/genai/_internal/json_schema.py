@@ -30,7 +30,9 @@ def python_type_to_json_schema(schema: Any) -> dict[str, Any]:
     try:
         from pydantic import TypeAdapter
     except ModuleNotFoundError as e:  # pragma: no cover
-        raise not_supported_error("pydantic is required for python-type output.text.json_schema") from e
+        raise not_supported_error(
+            "pydantic is required for python-type output.text.json_schema"
+        ) from e
 
     try:
         return TypeAdapter(schema).json_schema()
@@ -50,4 +52,3 @@ def normalize_json_schema(schema: Any) -> dict[str, Any]:
         reject_gemini_response_schema_dict(schema)
         return schema
     return python_type_to_json_schema(schema)
-

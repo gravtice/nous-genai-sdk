@@ -26,7 +26,8 @@ class TestCapabilityFlags(unittest.TestCase):
     def test_anthropic_chat_supports_tools_but_not_json_schema(self) -> None:
         from nous.genai.providers.anthropic import AnthropicAdapter
 
-        cap = AnthropicAdapter(api_key="__demo__").capabilities("claude-3-5-sonnet-20240620")
+        cap = AnthropicAdapter(api_key="__demo__").capabilities(
+            "claude-3-5-sonnet-20240620"
+        )
         self.assertEqual(cap.supports_tools, True)
         self.assertEqual(cap.supports_json_schema, False)
-

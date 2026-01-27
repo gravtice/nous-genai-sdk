@@ -7,7 +7,12 @@ from unittest.mock import patch
 class TestCliTimeoutHint(unittest.TestCase):
     def test_cli_prints_hint_on_running_job(self) -> None:
         import nous.genai.cli as cli
-        from nous.genai.types import Capability, GenerateRequest, GenerateResponse, JobInfo
+        from nous.genai.types import (
+            Capability,
+            GenerateRequest,
+            GenerateResponse,
+            JobInfo,
+        )
 
         class DummyClient:
             def capabilities(self, model: str) -> Capability:  # noqa: ARG002
@@ -49,4 +54,3 @@ class TestCliTimeoutHint(unittest.TestCase):
         self.assertIn("job_id", stderr)
         self.assertIn("--timeout-ms", stderr)
         self.assertIn("out.mp4", stderr)
-

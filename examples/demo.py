@@ -111,7 +111,9 @@ def _write_binary(client: Client, *, provider: str, part: Part, out_path: str) -
             raise SystemExit("unexpected output: ref is empty")
         raise SystemExit(f"output is ref (cannot write file here): {ref}")
 
-    raise SystemExit(f"unexpected output source type: {type(src).__name__} (expected url/bytes)")
+    raise SystemExit(
+        f"unexpected output source type: {type(src).__name__} (expected url/bytes)"
+    )
 
 
 def _generate_demo_image(client: Client, *, model: str, out_path: Path) -> None:
@@ -121,7 +123,10 @@ def _generate_demo_image(client: Client, *, model: str, out_path: Path) -> None:
         output=OutputSpec(modalities=["image"], image=OutputImageSpec(n=1)),
     )
     resp = client.generate(req)
-    part = next((p for p in _iter_parts(resp) if p.type == "image" and p.source is not None), None)
+    part = next(
+        (p for p in _iter_parts(resp) if p.type == "image" and p.source is not None),
+        None,
+    )
     if part is None:
         raise SystemExit("missing image output")
     _write_binary(client, provider=resp.provider, part=part, out_path=str(out_path))
@@ -141,7 +146,10 @@ def _generate_demo_tts(client: Client, *, model: str, out_path: Path) -> None:
         output=OutputSpec(modalities=["audio"], audio=audio),
     )
     resp = client.generate(req)
-    part = next((p for p in _iter_parts(resp) if p.type == "audio" and p.source is not None), None)
+    part = next(
+        (p for p in _iter_parts(resp) if p.type == "audio" and p.source is not None),
+        None,
+    )
     if part is None:
         raise SystemExit("missing audio output")
     _write_binary(client, provider=resp.provider, part=part, out_path=str(out_path))
@@ -162,7 +170,9 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
             f'(e.g. "tuzi-openai:tts-1")'
         )
     mime = detect_mime_type(str(_DEMO_AUDIO_PATH)) or "application/octet-stream"
-    audio = Part(type="audio", mime_type=mime, source=PartSourcePath(path=str(_DEMO_AUDIO_PATH)))
+    audio = Part(
+        type="audio", mime_type=mime, source=PartSourcePath(path=str(_DEMO_AUDIO_PATH))
+    )
 
     req = GenerateRequest(
         model=args.model,
@@ -178,7 +188,9 @@ def _cmd_chat(args: argparse.Namespace) -> int:
     client = Client()
     cap = client.capabilities(args.model)
     if not cap.supports_json_schema and not cap.supports_tools:
-        raise SystemExit("this model does not support structured output (no json_schema/tools)")
+        raise SystemExit(
+            "this model does not support structured output (no json_schema/tools)"
+        )
     if not _DEMO_IMAGE_PATH.is_file():
         raise SystemExit(
             f"missing preset image: {_DEMO_IMAGE_PATH.name}; "
@@ -188,7 +200,11 @@ def _cmd_chat(args: argparse.Namespace) -> int:
     mime = detect_mime_type(str(_DEMO_IMAGE_PATH)) or "application/octet-stream"
     parts: list[Part] = [
         Part.from_text(_PRESET_CHAT_PROMPT),
-        Part(type="image", mime_type=mime, source=PartSourcePath(path=str(_DEMO_IMAGE_PATH))),
+        Part(
+            type="image",
+            mime_type=mime,
+            source=PartSourcePath(path=str(_DEMO_IMAGE_PATH)),
+        ),
     ]
 
     if cap.supports_json_schema:
@@ -197,7 +213,9 @@ def _cmd_chat(args: argparse.Namespace) -> int:
             input=[Message(role="user", content=parts)],
             output=OutputSpec(
                 modalities=["text"],
-                text=OutputTextSpec(format="json", json_schema=_PRESET_CHAT_OUTPUT_SCHEMA),
+                text=OutputTextSpec(
+                    format="json", json_schema=_PRESET_CHAT_OUTPUT_SCHEMA
+                ),
             ),
         )
         resp = client.generate(req)
@@ -223,7 +241,12 @@ def _cmd_chat(args: argparse.Namespace) -> int:
     if not plain_text:
         raise SystemExit("missing text output (step1)")
 
-    out = parse_output(client, model=args.model, text=plain_text, json_schema=_PRESET_CHAT_OUTPUT_SCHEMA)
+    out = parse_output(
+        client,
+        model=args.model,
+        text=plain_text,
+        json_schema=_PRESET_CHAT_OUTPUT_SCHEMA,
+    )
     print(json.dumps(out, ensure_ascii=False, indent=2))
     return 0
 
@@ -236,7 +259,14 @@ def _cmd_embed(args: argparse.Namespace) -> int:
         output=OutputSpec(modalities=["embedding"], embedding=OutputEmbeddingSpec()),
     )
     resp = client.generate(req)
-    part = next((p for p in _iter_parts(resp) if p.type == "embedding" and p.embedding is not None), None)
+    part = next(
+        (
+            p
+            for p in _iter_parts(resp)
+            if p.type == "embedding" and p.embedding is not None
+        ),
+        None,
+    )
     if part is None:
         raise SystemExit("missing embedding output")
     vec = part.embedding or []
@@ -252,20 +282,28 @@ def main(argv: list[str] | None = None) -> int:
     p_chat.add_argument("--model", required=True, help='e.g. "tuzi-openai:gpt-4o-mini"')
     p_chat.set_defaults(_run=_cmd_chat)
 
-    p_image = sub.add_parser("image", help=f"Generate preset image -> {_DEMO_IMAGE_PATH.name}")
+    p_image = sub.add_parser(
+        "image", help=f"Generate preset image -> {_DEMO_IMAGE_PATH.name}"
+    )
     p_image.add_argument("--model", required=True, help='e.g. "tuzi-openai:dall-e-3"')
     p_image.set_defaults(_run=_cmd_image)
 
-    p_tts = sub.add_parser("tts", help=f"Generate preset speech -> {_DEMO_AUDIO_PATH.name}")
+    p_tts = sub.add_parser(
+        "tts", help=f"Generate preset speech -> {_DEMO_AUDIO_PATH.name}"
+    )
     p_tts.add_argument("--model", required=True, help='e.g. "tuzi-openai:tts-1"')
     p_tts.set_defaults(_run=_cmd_tts)
 
-    p_tr = sub.add_parser("transcribe", help=f"Transcribe preset speech ({_DEMO_AUDIO_PATH.name})")
+    p_tr = sub.add_parser(
+        "transcribe", help=f"Transcribe preset speech ({_DEMO_AUDIO_PATH.name})"
+    )
     p_tr.add_argument("--model", required=True, help='e.g. "tuzi-openai:whisper-1"')
     p_tr.set_defaults(_run=_cmd_transcribe)
 
     p_embed = sub.add_parser("embed", help="Embed preset text")
-    p_embed.add_argument("--model", required=True, help='e.g. "tuzi-openai:text-embedding-3-small"')
+    p_embed.add_argument(
+        "--model", required=True, help='e.g. "tuzi-openai:text-embedding-3-small"'
+    )
     p_embed.set_defaults(_run=_cmd_embed)
 
     args = parser.parse_args(argv)

@@ -41,8 +41,13 @@ class TestMcpModelKeywordFilter(unittest.TestCase):
             "tuzi-openai:gpt-4o-mini",
             "tuzi-openai:gpt-image-1",
         ]
-        with patch("nous.genai.mcp_server.Client.list_all_available_models", return_value=all_models):
-            server = build_server(host="127.0.0.1", port=7001, model_keywords=["tuzi", "image"])
+        with patch(
+            "nous.genai.mcp_server.Client.list_all_available_models",
+            return_value=all_models,
+        ):
+            server = build_server(
+                host="127.0.0.1", port=7001, model_keywords=["tuzi", "image"]
+            )
             out = _call_tool(server, "list_all_available_models", {})
 
         self.assertIsInstance(out, dict)
@@ -64,7 +69,10 @@ class TestMcpModelKeywordFilter(unittest.TestCase):
             "input": [{"role": "user", "content": [{"type": "text", "text": "x"}]}],
             "output": {"modalities": ["text"]},
         }
-        with patch("nous.genai.mcp_server.Client.generate", side_effect=AssertionError("should not call provider")):
+        with patch(
+            "nous.genai.mcp_server.Client.generate",
+            side_effect=AssertionError("should not call provider"),
+        ):
             server = build_server(host="127.0.0.1", port=7001, model_keywords=["image"])
             with self.assertRaises(ToolError) as cm:
                 _call_tool(server, "generate", {"request": req_dict})

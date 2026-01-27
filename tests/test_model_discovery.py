@@ -24,7 +24,9 @@ class TestModelDiscovery(unittest.TestCase):
 
         supported = MODEL_CATALOG["openai"][0]
         client = Client()
-        with patch.object(client, "list_provider_models", return_value=[supported, "__unknown__"]):
+        with patch.object(
+            client, "list_provider_models", return_value=[supported, "__unknown__"]
+        ):
             self.assertEqual(client.list_available_models("openai"), [supported])
 
     def test_list_unsupported_models_is_difference(self) -> None:
@@ -33,7 +35,9 @@ class TestModelDiscovery(unittest.TestCase):
 
         supported = MODEL_CATALOG["openai"][0]
         client = Client()
-        with patch.object(client, "list_provider_models", return_value=[supported, "__unknown__"]):
+        with patch.object(
+            client, "list_provider_models", return_value=[supported, "__unknown__"]
+        ):
             self.assertEqual(client.list_unsupported_models("openai"), ["__unknown__"])
 
     def test_list_stale_models_is_difference(self) -> None:
@@ -53,10 +57,14 @@ class TestModelDiscovery(unittest.TestCase):
         from nous.genai.client import Client
 
         client = Client()
-        with patch("nous.genai.reference.get_supported_providers", return_value=["b", "a"]):
+        with patch(
+            "nous.genai.reference.get_supported_providers", return_value=["b", "a"]
+        ):
             calls: list[tuple[str, int | None]] = []
 
-            def _side_effect(provider: str, *, timeout_ms: int | None = None) -> list[str]:
+            def _side_effect(
+                provider: str, *, timeout_ms: int | None = None
+            ) -> list[str]:
                 calls.append((provider, timeout_ms))
                 if provider == "a":
                     return ["m1", "m2"]
@@ -64,7 +72,9 @@ class TestModelDiscovery(unittest.TestCase):
                     return ["x"]
                 return []
 
-            with patch.object(client, "list_available_models", side_effect=_side_effect):
+            with patch.object(
+                client, "list_available_models", side_effect=_side_effect
+            ):
                 out = client.list_all_available_models(timeout_ms=123)
 
         self.assertEqual(calls, [("a", 123), ("b", 123)])

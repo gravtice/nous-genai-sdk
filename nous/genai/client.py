@@ -5,13 +5,16 @@ import base64
 import os
 import urllib.parse
 from dataclasses import replace
-from typing import Iterator, Protocol
+from typing import Iterator, Literal, Protocol, overload
 
 from ._internal.config import get_default_timeout_ms, get_provider_keys, load_env_files
 from ._internal.errors import GenAIError, invalid_request_error, not_supported_error
 from ._internal.http import download_to_file as _download_to_file
 from ._internal.http import download_to_tempfile
-from ._internal.json_schema import normalize_json_schema, reject_gemini_response_schema_dict
+from ._internal.json_schema import (
+    normalize_json_schema,
+    reject_gemini_response_schema_dict,
+)
 from .types import (
     Capability,
     GenerateEvent,
@@ -47,7 +50,11 @@ class Client:
     ) -> None:
         load_env_files()
         self._transport = os.environ.get("NOUS_GENAI_TRANSPORT", "").strip().lower()
-        self._proxy_url = proxy_url.strip() if isinstance(proxy_url, str) and proxy_url.strip() else None
+        self._proxy_url = (
+            proxy_url.strip()
+            if isinstance(proxy_url, str) and proxy_url.strip()
+            else None
+        )
         self._artifact_store = artifact_store
         keys = get_provider_keys()
         self._openai = (
@@ -56,7 +63,9 @@ class Client:
             else None
         )
         self._gemini = (
-            GeminiAdapter(api_key=keys.google_api_key, proxy_url=self._proxy_url) if keys.google_api_key else None
+            GeminiAdapter(api_key=keys.google_api_key, proxy_url=self._proxy_url)
+            if keys.google_api_key
+            else None
         )
         self._anthropic = (
             AnthropicAdapter(api_key=keys.anthropic_api_key, proxy_url=self._proxy_url)
@@ -69,7 +78,8 @@ class Client:
                 openai=OpenAIAdapter(
                     api_key=keys.aliyun_api_key,
                     base_url=os.environ.get(
-                        "ALIYUN_OAI_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                        "ALIYUN_OAI_BASE_URL",
+                        "https://dashscope.aliyuncs.com/compatible-mode/v1",
                     ).rstrip("/"),
                     provider_name="aliyun",
                     chat_api="chat_completions",
@@ -82,7 +92,8 @@ class Client:
                 openai=OpenAIAdapter(
                     api_key=keys.volcengine_api_key,
                     base_url=os.environ.get(
-                        "VOLCENGINE_OAI_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"
+                        "VOLCENGINE_OAI_BASE_URL",
+                        "https://ark.cn-beijing.volces.com/api/v3",
                     ).rstrip("/"),
                     provider_name="volcengine",
                     chat_api="chat_completions",
@@ -95,14 +106,18 @@ class Client:
             self._tuzi_web = TuziAdapter(
                 openai=OpenAIAdapter(
                     api_key=keys.tuzi_web_api_key,
-                    base_url=os.environ.get("TUZI_OAI_BASE_URL", f"{base_host}/v1").rstrip("/"),
+                    base_url=os.environ.get(
+                        "TUZI_OAI_BASE_URL", f"{base_host}/v1"
+                    ).rstrip("/"),
                     provider_name="tuzi-web",
                     chat_api="chat_completions",
                     proxy_url=self._proxy_url,
                 ),
                 gemini=GeminiAdapter(
                     api_key=keys.tuzi_web_api_key,
-                    base_url=os.environ.get("TUZI_GOOGLE_BASE_URL", base_host).rstrip("/"),
+                    base_url=os.environ.get("TUZI_GOOGLE_BASE_URL", base_host).rstrip(
+                        "/"
+                    ),
                     provider_name="tuzi-web",
                     auth_mode="bearer",
                     supports_file_upload=False,
@@ -110,7 +125,9 @@ class Client:
                 ),
                 anthropic=AnthropicAdapter(
                     api_key=keys.tuzi_web_api_key,
-                    base_url=os.environ.get("TUZI_ANTHROPIC_BASE_URL", base_host).rstrip("/"),
+                    base_url=os.environ.get(
+                        "TUZI_ANTHROPIC_BASE_URL", base_host
+                    ).rstrip("/"),
                     provider_name="tuzi-web",
                     auth_mode="bearer",
                     proxy_url=self._proxy_url,
@@ -121,7 +138,9 @@ class Client:
         if keys.tuzi_openai_api_key:
             self._tuzi_openai = OpenAIAdapter(
                 api_key=keys.tuzi_openai_api_key,
-                base_url=os.environ.get("TUZI_OAI_BASE_URL", f"{base_host}/v1").rstrip("/"),
+                base_url=os.environ.get("TUZI_OAI_BASE_URL", f"{base_host}/v1").rstrip(
+                    "/"
+                ),
                 provider_name="tuzi-openai",
                 chat_api="chat_completions",
                 proxy_url=self._proxy_url,
@@ -140,7 +159,9 @@ class Client:
         if keys.tuzi_anthropic_api_key:
             self._tuzi_anthropic = AnthropicAdapter(
                 api_key=keys.tuzi_anthropic_api_key,
-                base_url=os.environ.get("TUZI_ANTHROPIC_BASE_URL", base_host).rstrip("/"),
+                base_url=os.environ.get("TUZI_ANTHROPIC_BASE_URL", base_host).rstrip(
+                    "/"
+                ),
                 provider_name="tuzi-anthropic",
                 auth_mode="bearer",
                 proxy_url=self._proxy_url,
@@ -152,7 +173,9 @@ class Client:
         adapter = self._adapter(provider)
         return adapter.capabilities(model_id)
 
-    def list_provider_models(self, provider: str, *, timeout_ms: int | None = None) -> list[str]:
+    def list_provider_models(
+        self, provider: str, *, timeout_ms: int | None = None
+    ) -> list[str]:
         provider = _normalize_provider(provider)
         try:
             adapter = self._adapter(provider)
@@ -167,7 +190,9 @@ class Client:
             return []
         return [m for m in models if isinstance(m, str) and m]
 
-    def list_available_models(self, provider: str, *, timeout_ms: int | None = None) -> list[str]:
+    def list_available_models(
+        self, provider: str, *, timeout_ms: int | None = None
+    ) -> list[str]:
         """
         List models that are both:
         - included in the SDK curated catalog, and
@@ -176,7 +201,9 @@ class Client:
         from .reference import get_model_catalog
 
         p = _normalize_provider(provider)
-        supported = {m for m in get_model_catalog().get(p, []) if isinstance(m, str) and m}
+        supported = {
+            m for m in get_model_catalog().get(p, []) if isinstance(m, str) and m
+        }
         if not supported:
             return []
         remote = set(self.list_provider_models(p, timeout_ms=timeout_ms))
@@ -199,33 +226,57 @@ class Client:
                 out.append(f"{p}:{model_id}")
         return out
 
-    def list_unsupported_models(self, provider: str, *, timeout_ms: int | None = None) -> list[str]:
+    def list_unsupported_models(
+        self, provider: str, *, timeout_ms: int | None = None
+    ) -> list[str]:
         """
         List remotely available models that are not in the SDK curated catalog.
         """
         from .reference import get_model_catalog
 
         p = _normalize_provider(provider)
-        supported = {m for m in get_model_catalog().get(p, []) if isinstance(m, str) and m}
+        supported = {
+            m for m in get_model_catalog().get(p, []) if isinstance(m, str) and m
+        }
         remote = set(self.list_provider_models(p, timeout_ms=timeout_ms))
         if not remote:
             return []
         return sorted(remote - supported)
 
-    def list_stale_models(self, provider: str, *, timeout_ms: int | None = None) -> list[str]:
+    def list_stale_models(
+        self, provider: str, *, timeout_ms: int | None = None
+    ) -> list[str]:
         """
         List models that are in the SDK curated catalog, but not remotely available for the current credentials.
         """
         from .reference import get_model_catalog
 
         p = _normalize_provider(provider)
-        supported = {m for m in get_model_catalog().get(p, []) if isinstance(m, str) and m}
+        supported = {
+            m for m in get_model_catalog().get(p, []) if isinstance(m, str) and m
+        }
         if not supported:
             return []
         remote = set(self.list_provider_models(p, timeout_ms=timeout_ms))
         if not remote:
             return []
         return sorted(supported - remote)
+
+    @overload
+    def generate(
+        self,
+        request: GenerateRequest,
+        *,
+        stream: Literal[False] = False,
+    ) -> GenerateResponse: ...
+
+    @overload
+    def generate(
+        self,
+        request: GenerateRequest,
+        *,
+        stream: Literal[True],
+    ) -> Iterator[GenerateEvent]: ...
 
     def generate(
         self,
@@ -238,7 +289,10 @@ class Client:
         provider = _normalize_provider(request.provider())
         adapter = self._adapter(provider)
         if request.params.timeout_ms is None:
-            request = replace(request, params=replace(request.params, timeout_ms=self._default_timeout_ms))
+            request = replace(
+                request,
+                params=replace(request.params, timeout_ms=self._default_timeout_ms),
+            )
         request = _normalize_output_text_json_schema(request)
         cap = adapter.capabilities(request.model_id())
         in_modalities: set[str] = set()
@@ -247,7 +301,9 @@ class Client:
                 if part.type in {"text", "image", "audio", "video", "embedding"}:
                     in_modalities.add(part.type)
                 elif part.type == "file":
-                    raise not_supported_error("file parts are not supported in request.input; use image/audio/video parts")
+                    raise not_supported_error(
+                        "file parts are not supported in request.input; use image/audio/video parts"
+                    )
         if not in_modalities.issubset(cap.input_modalities):
             raise not_supported_error(
                 f"requested input modalities not supported: {sorted(in_modalities)} (supported: {sorted(cap.input_modalities)})"
@@ -264,10 +320,14 @@ class Client:
         out = adapter.generate(request, stream=stream)
         if isinstance(out, GenerateResponse):
             out = self._externalize_large_base64_parts(out)
-            return self._externalize_protected_url_parts(out, adapter=adapter, timeout_ms=request.params.timeout_ms)
+            return self._externalize_protected_url_parts(
+                out, adapter=adapter, timeout_ms=request.params.timeout_ms
+            )
         return out
 
-    def _externalize_large_base64_parts(self, resp: GenerateResponse) -> GenerateResponse:
+    def _externalize_large_base64_parts(
+        self, resp: GenerateResponse
+    ) -> GenerateResponse:
         store = self._artifact_store
         if store is None:
             return resp
@@ -311,7 +371,11 @@ class Client:
                     out_parts.append(part)
                     continue
 
-                mime_type = part.mime_type.strip() if isinstance(part.mime_type, str) and part.mime_type.strip() else None
+                mime_type = (
+                    part.mime_type.strip()
+                    if isinstance(part.mime_type, str) and part.mime_type.strip()
+                    else None
+                )
                 if mime_type is None and part.type == "image":
                     mime_type = sniff_image_mime_type(data)
 
@@ -393,7 +457,11 @@ class Client:
                     out_parts.append(part)
                     continue
                 url_host = urllib.parse.urlparse(url).hostname
-                if not isinstance(url_host, str) or not url_host or url_host.lower() != host_l:
+                if (
+                    not isinstance(url_host, str)
+                    or not url_host
+                    or url_host.lower() != host_l
+                ):
                     out_parts.append(part)
                     continue
 
@@ -418,7 +486,11 @@ class Client:
                         except OSError:
                             pass
 
-                mime_type = part.mime_type.strip() if isinstance(part.mime_type, str) and part.mime_type.strip() else None
+                mime_type = (
+                    part.mime_type.strip()
+                    if isinstance(part.mime_type, str) and part.mime_type.strip()
+                    else None
+                )
                 if mime_type is None and part.type == "image":
                     mime_type = sniff_image_mime_type(data)
 
@@ -463,7 +535,11 @@ class Client:
             if adapter is not None:
                 header_fn = getattr(adapter, "_download_headers", None)
                 base_url = getattr(adapter, "base_url", None)
-                if callable(header_fn) and isinstance(base_url, str) and base_url.strip():
+                if (
+                    callable(header_fn)
+                    and isinstance(base_url, str)
+                    and base_url.strip()
+                ):
                     base_host = urllib.parse.urlparse(base_url).hostname
                     url_host = urllib.parse.urlparse(url).hostname
                     if (
@@ -480,7 +556,12 @@ class Client:
                         if isinstance(raw, dict) and raw:
                             sanitized: dict[str, str] = {}
                             for k, v in raw.items():
-                                if isinstance(k, str) and k and isinstance(v, str) and v:
+                                if (
+                                    isinstance(k, str)
+                                    and k
+                                    and isinstance(v, str)
+                                    and v
+                                ):
                                     sanitized[k] = v
                             if sanitized:
                                 headers = sanitized
@@ -515,39 +596,57 @@ class Client:
         provider = _normalize_provider(provider)
         if provider == "openai":
             if self._openai is None:
-                raise invalid_request_error("NOUS_GENAI_OPENAI_API_KEY/OPENAI_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_OPENAI_API_KEY/OPENAI_API_KEY not configured"
+                )
             return self._openai
         if provider == "google":
             if self._gemini is None:
-                raise invalid_request_error("NOUS_GENAI_GOOGLE_API_KEY/GOOGLE_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_GOOGLE_API_KEY/GOOGLE_API_KEY not configured"
+                )
             return self._gemini
         if provider == "anthropic":
             if self._anthropic is None:
-                raise invalid_request_error("NOUS_GENAI_ANTHROPIC_API_KEY/ANTHROPIC_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_ANTHROPIC_API_KEY/ANTHROPIC_API_KEY not configured"
+                )
             return self._anthropic
         if provider == "aliyun":
             if self._aliyun is None:
-                raise invalid_request_error("NOUS_GENAI_ALIYUN_API_KEY/ALIYUN_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_ALIYUN_API_KEY/ALIYUN_API_KEY not configured"
+                )
             return self._aliyun
         if provider == "volcengine":
             if self._volcengine is None:
-                raise invalid_request_error("NOUS_GENAI_VOLCENGINE_API_KEY/VOLCENGINE_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_VOLCENGINE_API_KEY/VOLCENGINE_API_KEY not configured"
+                )
             return self._volcengine
         if provider == "tuzi-web":
             if self._tuzi_web is None:
-                raise invalid_request_error("NOUS_GENAI_TUZI_WEB_API_KEY/TUZI_WEB_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_TUZI_WEB_API_KEY/TUZI_WEB_API_KEY not configured"
+                )
             return self._tuzi_web
         if provider == "tuzi-openai":
             if self._tuzi_openai is None:
-                raise invalid_request_error("NOUS_GENAI_TUZI_OPENAI_API_KEY/TUZI_OPENAI_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_TUZI_OPENAI_API_KEY/TUZI_OPENAI_API_KEY not configured"
+                )
             return self._tuzi_openai
         if provider == "tuzi-google":
             if self._tuzi_google is None:
-                raise invalid_request_error("NOUS_GENAI_TUZI_GOOGLE_API_KEY/TUZI_GOOGLE_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_TUZI_GOOGLE_API_KEY/TUZI_GOOGLE_API_KEY not configured"
+                )
             return self._tuzi_google
         if provider == "tuzi-anthropic":
             if self._tuzi_anthropic is None:
-                raise invalid_request_error("NOUS_GENAI_TUZI_ANTHROPIC_API_KEY/TUZI_ANTHROPIC_API_KEY not configured")
+                raise invalid_request_error(
+                    "NOUS_GENAI_TUZI_ANTHROPIC_API_KEY/TUZI_ANTHROPIC_API_KEY not configured"
+                )
             return self._tuzi_anthropic
         raise invalid_request_error(f"unknown provider: {provider}")
 
@@ -615,4 +714,6 @@ def _normalize_output_text_json_schema(request: GenerateRequest) -> GenerateRequ
         reject_gemini_response_schema_dict(schema)
         return request
     coerced = normalize_json_schema(schema)
-    return replace(request, output=replace(request.output, text=replace(spec, json_schema=coerced)))
+    return replace(
+        request, output=replace(request.output, text=replace(spec, json_schema=coerced))
+    )

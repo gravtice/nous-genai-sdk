@@ -11,7 +11,7 @@ from hmac import compare_digest
 from collections import OrderedDict
 from contextvars import ContextVar
 from dataclasses import asdict, dataclass, replace
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 from urllib.parse import parse_qs
 from uuid import uuid4
 
@@ -41,7 +41,9 @@ _MCP_GENERATE_REQUEST_SCHEMA: dict = {
                 [
                     {
                         "role": "user",
-                        "content": [{"type": "text", "text": "Generate an image of a cute cat"}],
+                        "content": [
+                            {"type": "text", "text": "Generate an image of a cute cat"}
+                        ],
                     }
                 ]
             ],
@@ -51,7 +53,10 @@ _MCP_GENERATE_REQUEST_SCHEMA: dict = {
                     "type": "object",
                     "required": ["role", "content"],
                     "properties": {
-                        "role": {"type": "string", "enum": ["system", "user", "assistant", "tool"]},
+                        "role": {
+                            "type": "string",
+                            "enum": ["system", "user", "assistant", "tool"],
+                        },
                         "content": {
                             "description": 'List of Part objects (preferred) or a shorthand string. Preferred: [{"type":"text","text":"..."}].',
                             "anyOf": [
@@ -69,7 +74,10 @@ _MCP_GENERATE_REQUEST_SCHEMA: dict = {
                         "type": "object",
                         "required": ["role", "content"],
                         "properties": {
-                            "role": {"type": "string", "enum": ["system", "user", "assistant", "tool"]},
+                            "role": {
+                                "type": "string",
+                                "enum": ["system", "user", "assistant", "tool"],
+                            },
                             "content": {
                                 "description": 'List of Part objects (preferred) or a shorthand string. Preferred: [{"type":"text","text":"..."}].',
                                 "anyOf": [
@@ -78,7 +86,9 @@ _MCP_GENERATE_REQUEST_SCHEMA: dict = {
                                     {
                                         "type": "array",
                                         "minItems": 1,
-                                        "examples": [[{"type": "text", "text": "Hello"}]],
+                                        "examples": [
+                                            [{"type": "text", "text": "Hello"}]
+                                        ],
                                         "items": {
                                             "type": "object",
                                             "required": ["type"],
@@ -89,35 +99,62 @@ _MCP_GENERATE_REQUEST_SCHEMA: dict = {
                                                     "anyOf": [
                                                         {
                                                             "type": "object",
-                                                            "required": ["kind", "encoding", "data"],
+                                                            "required": [
+                                                                "kind",
+                                                                "encoding",
+                                                                "data",
+                                                            ],
                                                             "properties": {
-                                                                "kind": {"const": "bytes"},
-                                                                "encoding": {"const": "base64"},
-                                                                "data": {"type": "string"},
+                                                                "kind": {
+                                                                    "const": "bytes"
+                                                                },
+                                                                "encoding": {
+                                                                    "const": "base64"
+                                                                },
+                                                                "data": {
+                                                                    "type": "string"
+                                                                },
                                                             },
                                                         },
                                                         {
                                                             "type": "object",
                                                             "required": ["kind", "url"],
                                                             "properties": {
-                                                                "kind": {"const": "url"},
-                                                                "url": {"type": "string"},
+                                                                "kind": {
+                                                                    "const": "url"
+                                                                },
+                                                                "url": {
+                                                                    "type": "string"
+                                                                },
                                                             },
                                                         },
                                                         {
                                                             "type": "object",
-                                                            "required": ["kind", "provider", "id"],
+                                                            "required": [
+                                                                "kind",
+                                                                "provider",
+                                                                "id",
+                                                            ],
                                                             "properties": {
-                                                                "kind": {"const": "ref"},
-                                                                "provider": {"type": "string"},
-                                                                "id": {"type": "string"},
+                                                                "kind": {
+                                                                    "const": "ref"
+                                                                },
+                                                                "provider": {
+                                                                    "type": "string"
+                                                                },
+                                                                "id": {
+                                                                    "type": "string"
+                                                                },
                                                             },
                                                         },
                                                         {"type": "null"},
                                                     ]
                                                 },
                                                 "text": {"type": "string"},
-                                                "embedding": {"type": "array", "items": {"type": "number"}},
+                                                "embedding": {
+                                                    "type": "array",
+                                                    "items": {"type": "number"},
+                                                },
                                                 "meta": {"type": "object"},
                                             },
                                         },
@@ -147,11 +184,14 @@ _MCP_GENERATE_REQUEST_SCHEMA: dict = {
         },
         "params": {"type": "object"},
         "wait": {"type": "boolean"},
-        "tools": {"anyOf": [{"type": "array", "items": {"type": "object"}}, {"type": "null"}]},
+        "tools": {
+            "anyOf": [{"type": "array", "items": {"type": "object"}}, {"type": "null"}]
+        },
         "tool_choice": {"anyOf": [{"type": "object"}, {"type": "null"}]},
         "provider_options": {"type": "object"},
     },
 }
+
 
 class ProvidersInfo(TypedDict):
     supported: list[str]
@@ -183,7 +223,9 @@ class McpGenerateResponse(McpGenerateResponseBase, total=False):
     error: dict[str, Any] | None
 
 
-_REQUEST_TOKEN: ContextVar[str | None] = ContextVar("nous_genai_mcp_request_token", default=None)
+_REQUEST_TOKEN: ContextVar[str | None] = ContextVar(
+    "nous_genai_mcp_request_token", default=None
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +235,9 @@ class McpTokenScope:
     providers: frozenset[str]
 
 
-_DENY_ALL_SCOPE = McpTokenScope(providers_all=frozenset(), models={}, providers=frozenset())
+_DENY_ALL_SCOPE = McpTokenScope(
+    providers_all=frozenset(), models={}, providers=frozenset()
+)
 
 
 def _parse_mcp_token_scopes(raw: str) -> dict[str, McpTokenScope]:
@@ -211,11 +255,15 @@ def _parse_mcp_token_scopes(raw: str) -> dict[str, McpTokenScope]:
             items: list[str] = []
             for token, allow in parsed.items():
                 if not isinstance(token, str) or not token.strip():
-                    raise ValueError("invalid NOUS_GENAI_MCP_TOKEN_RULES: token must be a non-empty string")
+                    raise ValueError(
+                        "invalid NOUS_GENAI_MCP_TOKEN_RULES: token must be a non-empty string"
+                    )
                 if allow is None:
                     items.append(f"{token.strip()}: []")
                     continue
-                if not isinstance(allow, list) or not all(isinstance(x, str) for x in allow):
+                if not isinstance(allow, list) or not all(
+                    isinstance(x, str) for x in allow
+                ):
                     raise ValueError(
                         "invalid NOUS_GENAI_MCP_TOKEN_RULES: each token value must be a list of strings"
                     )
@@ -237,16 +285,24 @@ def _parse_mcp_token_scopes(raw: str) -> dict[str, McpTokenScope]:
         if entry.startswith("#"):
             continue
         if ":" not in entry:
-            raise ValueError(f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry (missing ':'): {entry}")
+            raise ValueError(
+                f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry (missing ':'): {entry}"
+            )
         token, spec = entry.split(":", 1)
         token = token.strip()
         spec = spec.strip()
         if not token:
-            raise ValueError(f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry (empty token): {entry}")
+            raise ValueError(
+                f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry (empty token): {entry}"
+            )
         if token in scopes:
-            raise ValueError(f"invalid NOUS_GENAI_MCP_TOKEN_RULES (duplicate token): {token}")
+            raise ValueError(
+                f"invalid NOUS_GENAI_MCP_TOKEN_RULES (duplicate token): {token}"
+            )
         if not (spec.startswith("[") and spec.endswith("]")):
-            raise ValueError(f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry (expected '[...]'): {entry}")
+            raise ValueError(
+                f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry (expected '[...]'): {entry}"
+            )
         inner = spec[1:-1].strip()
         providers_all: set[str] = set()
         models: dict[str, set[str]] = {}
@@ -258,7 +314,9 @@ def _parse_mcp_token_scopes(raw: str) -> dict[str, McpTokenScope]:
                 provider = provider.strip().lower()
                 model_id = model_id.strip()
                 if not provider or not model_id:
-                    raise ValueError(f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry item: {item}")
+                    raise ValueError(
+                        f"invalid NOUS_GENAI_MCP_TOKEN_RULES entry item: {item}"
+                    )
                 if model_id == "*":
                     providers_all.add(provider)
                     continue
@@ -269,7 +327,9 @@ def _parse_mcp_token_scopes(raw: str) -> dict[str, McpTokenScope]:
         providers_all_fs = frozenset(providers_all)
         models_fs = {p: frozenset(ids) for p, ids in models.items() if ids}
         providers_fs = providers_all_fs | frozenset(models_fs.keys())
-        scopes[token] = McpTokenScope(providers_all=providers_all_fs, models=models_fs, providers=providers_fs)
+        scopes[token] = McpTokenScope(
+            providers_all=providers_all_fs, models=models_fs, providers=providers_fs
+        )
 
     return scopes
 
@@ -318,12 +378,16 @@ def build_server(
     try:
         from mcp.server.fastmcp import FastMCP
     except ModuleNotFoundError as e:  # pragma: no cover
-        raise SystemExit("missing dependency: install `mcp` to run the MCP server (e.g. `uv sync`)") from e
+        raise SystemExit(
+            "missing dependency: install `mcp` to run the MCP server (e.g. `uv sync`)"
+        ) from e
 
     try:
         from pydantic import Field, WithJsonSchema
     except ModuleNotFoundError as e:  # pragma: no cover
-        raise SystemExit("missing dependency: install `mcp` to run the MCP server (e.g. `uv sync`)") from e
+        raise SystemExit(
+            "missing dependency: install `mcp` to run the MCP server (e.g. `uv sync`)"
+        ) from e
     from typing import Annotated
     from starlette.requests import Request
     from starlette.responses import Response
@@ -367,7 +431,11 @@ def build_server(
         return f"http://{host}:{port}"
 
     base_url = _public_base_url()
-    signing_token = bearer_token.strip() if isinstance(bearer_token, str) and bearer_token.strip() else None
+    signing_token = (
+        bearer_token.strip()
+        if isinstance(bearer_token, str) and bearer_token.strip()
+        else None
+    )
     token_scopes = token_scopes or {}
 
     def _b64url(data: bytes) -> str:
@@ -381,7 +449,9 @@ def build_server(
 
     def _artifact_sig(key: str, artifact_id: str, exp: int) -> str:
         msg = f"{artifact_id}.{exp}".encode("utf-8", errors="strict")
-        digest = hmac.new(key.encode("utf-8", errors="strict"), msg, hashlib.sha256).digest()
+        digest = hmac.new(
+            key.encode("utf-8", errors="strict"), msg, hashlib.sha256
+        ).digest()
         return _b64url(digest)
 
     def _artifact_url(artifact_id: str) -> str:
@@ -430,7 +500,9 @@ def build_server(
         if len(data) > max_artifact_bytes:
             return None
         artifact_id = uuid4().hex
-        artifacts[artifact_id] = _ArtifactItem(data=data, mime_type=mime_type, owner_token=_artifact_owner())
+        artifacts[artifact_id] = _ArtifactItem(
+            data=data, mime_type=mime_type, owner_token=_artifact_owner()
+        )
         artifacts_total_bytes += len(data)
         artifacts.move_to_end(artifact_id)
         _enforce_artifact_limits()
@@ -448,7 +520,9 @@ def build_server(
         artifact_store=_McpArtifactStore(),
     )
 
-    @server.custom_route("/artifact/{artifact_id}", methods=["GET", "HEAD"], include_in_schema=False)
+    @server.custom_route(
+        "/artifact/{artifact_id}", methods=["GET", "HEAD"], include_in_schema=False
+    )
     async def artifact_route(request: Request) -> Response:
         artifact_id = request.path_params.get("artifact_id")
         if not isinstance(artifact_id, str) or not artifact_id:
@@ -554,7 +628,9 @@ def build_server(
             configured.append(p)
         return {"supported": supported, "configured": configured}
 
-    def list_available_models(provider: str, *, timeout_ms: int | None = None) -> AvailableModelsInfo:
+    def list_available_models(
+        provider: str, *, timeout_ms: int | None = None
+    ) -> AvailableModelsInfo:
         """
         List available models (sdk catalog ∩ remotely available) for a provider.
 
@@ -595,7 +671,9 @@ def build_server(
             )
         return {"models": models}
 
-    def list_all_available_models(*, timeout_ms: int | None = None) -> AvailableModelsInfo:
+    def list_all_available_models(
+        *, timeout_ms: int | None = None
+    ) -> AvailableModelsInfo:
         """
         List available models (sdk catalog ∩ remotely available) across all providers.
 
@@ -615,14 +693,14 @@ def build_server(
             rows = get_sdk_supported_models()
             by_model = {r["model"]: r for r in rows}
 
-            models: list[ModelInfo] = []
+            out_models: list[ModelInfo] = []
             for model in client.list_all_available_models(timeout_ms=timeout_ms):
                 if not _model_allowed(model) or not _model_allowed_by_scope(model):
                     continue
                 row = by_model.get(model)
                 if row is None:
                     continue
-                models.append(
+                out_models.append(
                     {
                         "model": model,
                         "modes": row["modes"],
@@ -630,15 +708,19 @@ def build_server(
                         "output_modalities": row["output_modalities"],
                     }
                 )
-            return {"models": models}
+            return {"models": out_models}
 
         models: list[ModelInfo] = []
         for provider in sorted(scope.providers):
-            models.extend(list_available_models(provider, timeout_ms=timeout_ms)["models"])
+            models.extend(
+                list_available_models(provider, timeout_ms=timeout_ms)["models"]
+            )
         models.sort(key=lambda row: row["model"])
         return {"models": models}
 
-    def generate(request: dict[str, Any], *, stream: bool = False) -> McpGenerateResponse:
+    def generate(
+        request: dict[str, Any], *, stream: bool = False
+    ) -> McpGenerateResponse:
         """
         MCP-friendly wrapper of `Client.generate`.
 
@@ -657,7 +739,9 @@ def build_server(
         - id/provider/model/status/output (+ optional usage/job/error)
         """
         if stream:
-            raise ValueError("stream=true is not supported for MCP tool calls; use stream=false")
+            raise ValueError(
+                "stream=true is not supported for MCP tool calls; use stream=false"
+            )
 
         from pydantic import TypeAdapter, ValidationError
 
@@ -695,7 +779,11 @@ def build_server(
                     for part in content:
                         if isinstance(part, str):
                             parts.append({"type": "text", "text": part})
-                        elif isinstance(part, dict) and "type" not in part and isinstance(part.get("text"), str):
+                        elif (
+                            isinstance(part, dict)
+                            and "type" not in part
+                            and isinstance(part.get("text"), str)
+                        ):
                             p = dict(part)
                             p["type"] = "text"
                             parts.append(p)
@@ -731,10 +819,14 @@ def build_server(
 
         resp = client.generate(req, stream=False)
         if not isinstance(resp, GenerateResponse):
-            raise ValueError("provider returned stream response; expected non-stream response")
-        return asdict(resp)
+            raise ValueError(
+                "provider returned stream response; expected non-stream response"
+            )
+        return cast(McpGenerateResponse, asdict(resp))
 
-    generate.__annotations__["request"] = Annotated[dict[str, Any], WithJsonSchema(_MCP_GENERATE_REQUEST_SCHEMA)]
+    generate.__annotations__["request"] = Annotated[
+        dict[str, Any], WithJsonSchema(_MCP_GENERATE_REQUEST_SCHEMA)
+    ]
     list_available_models.__annotations__["provider"] = Annotated[
         str,
         Field(
@@ -808,10 +900,14 @@ def main(argv: list[str] | None = None) -> None:
         help='Only expose models whose "{provider}:{model_id}" contains this substring (case-insensitive). Repeatable; comma-separated also accepted.',
     )
     args = parser.parse_args(argv)
-    bearer = (args.bearer_token or os.environ.get("NOUS_GENAI_MCP_BEARER_TOKEN") or "").strip()
+    bearer = (
+        args.bearer_token or os.environ.get("NOUS_GENAI_MCP_BEARER_TOKEN") or ""
+    ).strip()
     token_rules = (os.environ.get("NOUS_GENAI_MCP_TOKEN_RULES") or "").strip()
     if token_rules and bearer:
-        raise SystemExit("set either NOUS_GENAI_MCP_BEARER_TOKEN/--bearer-token or NOUS_GENAI_MCP_TOKEN_RULES, not both")
+        raise SystemExit(
+            "set either NOUS_GENAI_MCP_BEARER_TOKEN/--bearer-token or NOUS_GENAI_MCP_TOKEN_RULES, not both"
+        )
     token_scopes: dict[str, McpTokenScope] = {}
     if token_rules:
         try:
@@ -839,9 +935,16 @@ def main(argv: list[str] | None = None) -> None:
     try:
         import uvicorn
     except ModuleNotFoundError as e:  # pragma: no cover
-        raise SystemExit("missing dependency: install `uvicorn` to run the MCP server (e.g. `uv sync`)") from e
+        raise SystemExit(
+            "missing dependency: install `uvicorn` to run the MCP server (e.g. `uv sync`)"
+        ) from e
 
-    uvicorn.run(app, host=server_host, port=server_port, log_level=server.settings.log_level.lower())
+    uvicorn.run(
+        app,
+        host=server_host,
+        port=server_port,
+        log_level=server.settings.log_level.lower(),
+    )
 
 
 class _BearerAuthMiddleware:
@@ -902,13 +1005,20 @@ class _BearerAuthMiddleware:
 
         qs = scope.get("query_string") or b""
         try:
-            query = parse_qs(qs.decode("utf-8", errors="replace"), keep_blank_values=True)
+            query = parse_qs(
+                qs.decode("utf-8", errors="replace"), keep_blank_values=True
+            )
         except Exception:
             return None
 
         exp_raw = (query.get("exp") or [None])[0]
         sig_raw = (query.get("sig") or [None])[0]
-        if not isinstance(exp_raw, str) or not exp_raw.strip() or not isinstance(sig_raw, str) or not sig_raw.strip():
+        if (
+            not isinstance(exp_raw, str)
+            or not exp_raw.strip()
+            or not isinstance(sig_raw, str)
+            or not sig_raw.strip()
+        ):
             return None
 
         try:
@@ -922,7 +1032,9 @@ class _BearerAuthMiddleware:
         msg = f"{artifact_id}.{exp}".encode("utf-8", errors="strict")
         sig = sig_raw.strip()
         for token in self._tokens:
-            digest = hmac.new(token.encode("utf-8", errors="strict"), msg, hashlib.sha256).digest()
+            digest = hmac.new(
+                token.encode("utf-8", errors="strict"), msg, hashlib.sha256
+            ).digest()
             expected = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
             if compare_digest(sig, expected):
                 return token
@@ -954,7 +1066,10 @@ async def _send_unauthorized(send: Any) -> None:
             "headers": [
                 (b"content-type", b"application/json"),
                 (b"content-length", str(len(body)).encode()),
-                (b"www-authenticate", b'Bearer error="invalid_token", error_description="Authentication required"'),
+                (
+                    b"www-authenticate",
+                    b'Bearer error="invalid_token", error_description="Authentication required"',
+                ),
             ],
         }
     )

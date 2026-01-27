@@ -9,7 +9,9 @@ class TestModesInference(unittest.TestCase):
         rows = get_sdk_supported_models_for_provider("openai")
         by_model = {r["model"]: r for r in rows}
 
-        self.assertEqual(by_model["openai:gpt-4o-mini"]["modes"], ["sync", "stream", "async"])
+        self.assertEqual(
+            by_model["openai:gpt-4o-mini"]["modes"], ["sync", "stream", "async"]
+        )
         self.assertEqual(by_model["openai:dall-e-3"]["modes"], ["sync", "async"])
         self.assertEqual(by_model["openai:sora-2"]["modes"], ["sync", "job", "async"])
 
@@ -21,8 +23,12 @@ class TestModesInference(unittest.TestCase):
             rows = get_sdk_supported_models_for_provider("openai")
 
         by_model = {r["model"]: r for r in rows}
-        self.assertEqual(by_model["openai:gpt-4o-mini"]["modes"], ["sync", "stream", "job", "async"])
-        self.assertIn("可能返回 running(job)", " ".join(by_model["openai:gpt-4o-mini"]["notes"]))
+        self.assertEqual(
+            by_model["openai:gpt-4o-mini"]["modes"], ["sync", "stream", "job", "async"]
+        )
+        self.assertIn(
+            "可能返回 running(job)", " ".join(by_model["openai:gpt-4o-mini"]["notes"])
+        )
 
     def test_overrides_can_disable_stream(self) -> None:
         from nous.genai.reference import get_sdk_supported_models_for_provider
@@ -33,4 +39,3 @@ class TestModesInference(unittest.TestCase):
 
         by_model = {r["model"]: r for r in rows}
         self.assertEqual(by_model["openai:gpt-4o-mini"]["modes"], ["sync", "async"])
-

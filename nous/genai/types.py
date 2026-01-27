@@ -4,7 +4,7 @@ import base64
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from ._internal.errors import ErrorInfo, invalid_request_error, not_supported_error
 
@@ -40,7 +40,7 @@ def normalize_reasoning_effort(value: object) -> ReasoningEffort:
     effort = value.strip().lower()
     if effort not in _REASONING_EFFORT_VALUES:
         raise invalid_request_error(f"unknown reasoning.effort: {effort}")
-    return effort
+    return cast(ReasoningEffort, effort)
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,13 +55,17 @@ class PartSourceBytes:
                 object.__setattr__(self, "data", bytes(self.data))
                 return
             if not isinstance(self.data, bytes):
-                raise ValueError("PartSourceBytes.data must be bytes when encoding is None")
+                raise ValueError(
+                    "PartSourceBytes.data must be bytes when encoding is None"
+                )
             return
 
         if self.encoding != "base64":
             raise ValueError(f"unknown PartSourceBytes.encoding: {self.encoding}")
         if not isinstance(self.data, str):
-            raise ValueError("PartSourceBytes.data must be str when encoding is 'base64'")
+            raise ValueError(
+                "PartSourceBytes.data must be str when encoding is 'base64'"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +115,9 @@ class Part:
             return
 
         if self.type == "embedding":
-            if not isinstance(self.embedding, list) or not all(isinstance(x, (int, float)) for x in self.embedding):
+            if not isinstance(self.embedding, list) or not all(
+                isinstance(x, (int, float)) for x in self.embedding
+            ):
                 raise ValueError("embedding Part requires embedding: list[number]")
             if self.source is not None:
                 raise ValueError("embedding Part cannot have source")
@@ -134,7 +140,9 @@ class Part:
             if self.mime_type and self.type in {"image", "audio", "video"}:
                 prefix = f"{self.type}/"
                 if not self.mime_type.startswith(prefix):
-                    raise ValueError(f"{self.type} Part mime_type must start with {prefix!r}")
+                    raise ValueError(
+                        f"{self.type} Part mime_type must start with {prefix!r}"
+                    )
             return
 
         if self.type in {"tool_call", "tool_result"}:
@@ -153,7 +161,9 @@ class Part:
         return Part(type="text", text=text)
 
     @staticmethod
-    def tool_call(*, name: str, arguments: Any, tool_call_id: str | None = None) -> "Part":
+    def tool_call(
+        *, name: str, arguments: Any, tool_call_id: str | None = None
+    ) -> "Part":
         meta: dict[str, Any] = {"name": name, "arguments": arguments}
         if tool_call_id is not None:
             meta["tool_call_id"] = tool_call_id
@@ -257,8 +267,10 @@ class ToolChoice:
         if mode == "tool" and not name:
             raise invalid_request_error("tool_choice.name required when mode='tool'")
         if mode != "tool" and name is not None:
-            raise invalid_request_error("tool_choice.name only allowed when mode='tool'")
-        return ToolChoice(mode=mode, name=name)
+            raise invalid_request_error(
+                "tool_choice.name only allowed when mode='tool'"
+            )
+        return ToolChoice(mode=cast(ToolChoiceMode, mode), name=name)
 
 
 @dataclass(frozen=True, slots=True)

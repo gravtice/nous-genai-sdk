@@ -42,7 +42,9 @@ class TestCliVideoWaitDefault(unittest.TestCase):
                                 Part(
                                     type="video",
                                     mime_type="video/mp4",
-                                    source=PartSourceUrl(url="https://example.com/video.mp4"),
+                                    source=PartSourceUrl(
+                                        url="https://example.com/video.mp4"
+                                    ),
                                 )
                             ],
                         )
@@ -66,4 +68,3 @@ class TestCliVideoWaitDefault(unittest.TestCase):
         assert dummy.last_request is not None
         self.assertTrue(dummy.last_request.wait)
         self.assertIn("https://example.com/video.mp4", buf.getvalue())
-

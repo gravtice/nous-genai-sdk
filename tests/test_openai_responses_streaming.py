@@ -24,7 +24,9 @@ class TestOpenAIResponsesStreaming(unittest.TestCase):
             chat_api="responses",
         )
 
-        with patch("nous.genai.providers.openai.request_stream_json_sse") as request_stream_json_sse:
+        with patch(
+            "nous.genai.providers.openai.request_stream_json_sse"
+        ) as request_stream_json_sse:
             request_stream_json_sse.return_value = iter(
                 [
                     {"type": "response.output_text.delta", "delta": "hi"},
@@ -61,14 +63,19 @@ class TestOpenAIResponsesStreaming(unittest.TestCase):
             chat_api="responses",
         )
 
-        with patch("nous.genai.providers.openai.request_stream_json_sse") as request_stream_json_sse:
+        with patch(
+            "nous.genai.providers.openai.request_stream_json_sse"
+        ) as request_stream_json_sse:
             request_stream_json_sse.return_value = iter(
                 [
                     {
                         "type": "response.failed",
                         "sequence_number": 1,
                         "response": {
-                            "error": {"code": "server_error", "message": "The model failed to generate a response."}
+                            "error": {
+                                "code": "server_error",
+                                "message": "The model failed to generate a response.",
+                            }
                         },
                     }
                 ]
@@ -93,13 +100,17 @@ class TestOpenAIResponsesStreaming(unittest.TestCase):
             chat_api="responses",
         )
 
-        with patch("nous.genai.providers.openai.request_stream_json_sse") as request_stream_json_sse:
+        with patch(
+            "nous.genai.providers.openai.request_stream_json_sse"
+        ) as request_stream_json_sse:
             request_stream_json_sse.return_value = iter(
                 [
                     {
                         "type": "response.incomplete",
                         "sequence_number": 1,
-                        "response": {"incomplete_details": {"reason": "max_output_tokens"}},
+                        "response": {
+                            "incomplete_details": {"reason": "max_output_tokens"}
+                        },
                     }
                 ]
             )
@@ -111,4 +122,3 @@ class TestOpenAIResponsesStreaming(unittest.TestCase):
             self.assertEqual(cm.exception.info.provider_code, None)
             self.assertIn("incomplete", str(cm.exception))
             self.assertIn("max_output_tokens", str(cm.exception))
-

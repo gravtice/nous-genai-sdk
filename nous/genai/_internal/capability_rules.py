@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Central place for capability rules based on model series (usually shared prefixes).
 
@@ -7,11 +5,19 @@ Rules here only look at model_id strings and are provider-agnostic. Provider ada
 still own protocol details (stream/job semantics, routing, endpoint quirks).
 """
 
+from __future__ import annotations
+
 import re
 from typing import Final, Literal
 
+from ..types import Modality
+
 ModelKind = Literal["video", "image", "embedding", "tts", "transcribe", "chat"]
 GeminiModelKind = Literal["video", "embedding", "tts", "native_audio", "image", "chat"]
+
+
+def _mods(*values: Modality) -> set[Modality]:
+    return set(values)
 
 
 def _norm(model_id: str) -> str:
@@ -65,7 +71,10 @@ _DISTIL_WHISPER_PREFIX: Final[str] = "distil-whisper-"
 _TRANSCRIBE_MARKER: Final[str] = "-transcribe"
 _ASR_PREFIX: Final[str] = "asr"
 
-_IMAGE_MODELS_WITH_IMAGE_INPUT_PREFIXES: Final[tuple[str, ...]] = ("gpt-image-1", "chatgpt-image")
+_IMAGE_MODELS_WITH_IMAGE_INPUT_PREFIXES: Final[tuple[str, ...]] = (
+    "gpt-image-1",
+    "chatgpt-image",
+)
 
 _Z_IMAGE_PREFIX: Final[str] = "z-image"
 
@@ -82,7 +91,11 @@ _KIMI_LATEST_PREFIX: Final[str] = "kimi-latest"
 _QWEN_PREFIX: Final[str] = "qwen"
 _QVQ_PREFIX: Final[str] = "qvq"
 
-_CHAT_NO_IMAGE_PREFIXES: Final[tuple[str, ...]] = (_DEEPSEEK_V3_PREFIX, _KIMI_K2_PREFIX, _QVQ_PREFIX)
+_CHAT_NO_IMAGE_PREFIXES: Final[tuple[str, ...]] = (
+    _DEEPSEEK_V3_PREFIX,
+    _KIMI_K2_PREFIX,
+    _QVQ_PREFIX,
+)
 
 _CHAT_TEXT_ONLY_EXACT: Final[tuple[str, ...]] = (
     "gpt-4",
@@ -257,50 +270,52 @@ def infer_model_kind(model_id: str) -> ModelKind:
     return "chat"
 
 
-def output_modalities_for_kind(kind: ModelKind) -> set[str] | None:
+def output_modalities_for_kind(kind: ModelKind) -> set[Modality] | None:
     if kind == "video":
-        return {"video"}
+        return _mods("video")
     if kind == "image":
-        return {"image"}
+        return _mods("image")
     if kind == "embedding":
-        return {"embedding"}
+        return _mods("embedding")
     if kind == "tts":
-        return {"audio"}
+        return _mods("audio")
     if kind == "transcribe":
-        return {"text"}
+        return _mods("text")
     return None
 
 
-def transcribe_input_modalities(_: str) -> set[str]:
-    return {"audio"}
+def transcribe_input_modalities(_: str) -> set[Modality]:
+    return _mods("audio")
 
 
 def is_claude_model(model_id: str) -> bool:
     return _norm(model_id).startswith(_CLAUDE_PREFIX)
 
 
-def claude_input_modalities(model_id: str) -> set[str]:
+def claude_input_modalities(model_id: str) -> set[Modality]:
     if is_claude_model(model_id):
-        return {"text", "image"}
-    return {"text"}
+        return _mods("text", "image")
+    return _mods("text")
 
 
-def image_input_modalities(model_id: str) -> set[str]:
+def image_input_modalities(model_id: str) -> set[Modality]:
     mid_l = _norm(model_id)
-    if _starts_with_any(mid_l, _IMAGE_MODELS_WITH_IMAGE_INPUT_PREFIXES) or mid_l.startswith(_Z_IMAGE_PREFIX):
-        return {"text", "image"}
-    return {"text"}
+    if _starts_with_any(
+        mid_l, _IMAGE_MODELS_WITH_IMAGE_INPUT_PREFIXES
+    ) or mid_l.startswith(_Z_IMAGE_PREFIX):
+        return _mods("text", "image")
+    return _mods("text")
 
 
-def video_input_modalities(model_id: str) -> set[str]:
+def video_input_modalities(model_id: str) -> set[Modality]:
     if is_veo_model(model_id):
-        return {"text", "image"}
-    return {"text"}
+        return _mods("text", "image")
+    return _mods("text")
 
 
-def chat_input_modalities(model_id: str) -> set[str]:
+def chat_input_modalities(model_id: str) -> set[Modality]:
     mid_l = _norm(model_id)
-    out = {"text"}
+    out: set[Modality] = {"text"}
     if _chat_supports_image_input(mid_l):
         out.add("image")
     if _chat_supports_audio_input(mid_l):
@@ -308,9 +323,9 @@ def chat_input_modalities(model_id: str) -> set[str]:
     return out
 
 
-def chat_output_modalities(model_id: str) -> set[str]:
+def chat_output_modalities(model_id: str) -> set[Modality]:
     mid_l = _norm(model_id)
-    out = {"text"}
+    out: set[Modality] = {"text"}
     if _chat_supports_audio_io(mid_l):
         out.add("audio")
     return out
@@ -321,7 +336,9 @@ def chat_supports_audio_io(model_id: str) -> bool:
 
 
 def _chat_supports_audio_io(mid_l: str) -> bool:
-    return _starts_with_any(mid_l, _CHAT_AUDIO_PREFIXES) or mid_l.endswith(_CHAT_AUDIO_SUFFIXES)
+    return _starts_with_any(mid_l, _CHAT_AUDIO_PREFIXES) or mid_l.endswith(
+        _CHAT_AUDIO_SUFFIXES
+    )
 
 
 def _qwen_supports_image_input(mid_l: str) -> bool:
@@ -383,6 +400,7 @@ def _openai_style_chat_supports_image_input(mid_l: str) -> bool:
 
 # ---- Gemini model series ----
 
+
 def _gemini_norm(model_id: str) -> str:
     mid = model_id.lower().strip()
     if mid.startswith("models/"):
@@ -420,13 +438,13 @@ def gemini_is_image_model(model_id: str) -> bool:
     return _gemini_is_image_model(_gemini_norm(model_id))
 
 
-def gemini_image_input_modalities(model_id: str) -> set[str]:
+def gemini_image_input_modalities(model_id: str) -> set[Modality]:
     mid_l = _gemini_norm(model_id)
     if mid_l.startswith("imagen-"):
-        return {"text"}
+        return _mods("text")
     if "image-generation" in mid_l:
-        return {"text"}
-    return {"text", "image"}
+        return _mods("text")
+    return _mods("text", "image")
 
 
 def gemini_model_kind(model_id: str) -> GeminiModelKind:
@@ -444,15 +462,15 @@ def gemini_model_kind(model_id: str) -> GeminiModelKind:
     return "chat"
 
 
-def gemini_output_modalities(kind: GeminiModelKind) -> set[str]:
+def gemini_output_modalities(kind: GeminiModelKind) -> set[Modality]:
     if kind == "video":
-        return {"video"}
+        return _mods("video")
     if kind == "embedding":
-        return {"embedding"}
+        return _mods("embedding")
     if kind == "tts":
-        return {"audio"}
+        return _mods("audio")
     if kind == "native_audio":
-        return {"text", "audio"}
+        return _mods("text", "audio")
     if kind == "image":
-        return {"image"}
-    return {"text"}
+        return _mods("image")
+    return _mods("text")

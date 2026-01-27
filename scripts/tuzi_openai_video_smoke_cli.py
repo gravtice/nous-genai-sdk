@@ -12,9 +12,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from nous.genai import Client
-from nous.genai.cli import main as genai_main
-from nous.genai.reference import get_sdk_supported_models_for_provider
+from nous.genai import Client  # noqa: E402
+from nous.genai.cli import main as genai_main  # noqa: E402
+from nous.genai.reference import get_sdk_supported_models_for_provider  # noqa: E402
 
 _PROMPT = "A short video of a red square on a white background."
 _TIMEOUT_MS = 600_000
@@ -34,7 +34,9 @@ def _system_exit_message(e: SystemExit) -> str:
 def main() -> int:
     client = Client()
     if getattr(client, "_tuzi_openai", None) is None:
-        raise SystemExit("TUZI_OPENAI_API_KEY not configured (NOUS_GENAI_TUZI_OPENAI_API_KEY/TUZI_OPENAI_API_KEY)")
+        raise SystemExit(
+            "TUZI_OPENAI_API_KEY not configured (NOUS_GENAI_TUZI_OPENAI_API_KEY/TUZI_OPENAI_API_KEY)"
+        )
 
     rows = get_sdk_supported_models_for_provider("tuzi-openai")
     video_ids = [r["model_id"] for r in rows if r.get("category") == "video"]
@@ -157,7 +159,9 @@ def main() -> int:
         "failures": str(failures_path),
         "summary": str(summary_path),
     }
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     with failures_path.open("w", encoding="utf-8") as f:
         f.write("model\tlisted\toutput_path\tmessage\n")

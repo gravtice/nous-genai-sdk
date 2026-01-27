@@ -4,12 +4,26 @@ import json
 import re
 import time
 from dataclasses import dataclass, replace
-from typing import Iterator
+from typing import Any, Iterator
 from uuid import uuid4
 
-from .._internal.errors import GenAIError, invalid_request_error, not_supported_error, provider_error
+from .._internal.errors import (
+    GenAIError,
+    invalid_request_error,
+    not_supported_error,
+    provider_error,
+)
 from .._internal.http import request_json
-from ..types import Capability, GenerateEvent, GenerateRequest, GenerateResponse, JobInfo, Message, Part, PartSourceUrl
+from ..types import (
+    Capability,
+    GenerateEvent,
+    GenerateRequest,
+    GenerateResponse,
+    JobInfo,
+    Message,
+    Part,
+    PartSourceUrl,
+)
 from .anthropic import AnthropicAdapter
 from .gemini import GeminiAdapter
 from .openai import OpenAIAdapter
@@ -17,14 +31,16 @@ from .openai import OpenAIAdapter
 _ASYNCDATA_BASE_URL = "https://asyncdata.net"
 _ASYNCDATA_PRO_BASE_URL = "https://pro.asyncdata.net"
 
-_DEEPSEARCH_MODELS = frozenset({
-    "gemini-2.5-flash-deepsearch",
-    "gemini-2.5-flash-deepsearch-async",
-    "gemini-2.5-pro-deepsearch",
-    "gemini-2.5-pro-deepsearch-async",
-    "gemini-3-pro-deepsearch",
-    "gemini-3-pro-deepsearch-async",
-})
+_DEEPSEARCH_MODELS = frozenset(
+    {
+        "gemini-2.5-flash-deepsearch",
+        "gemini-2.5-flash-deepsearch-async",
+        "gemini-2.5-pro-deepsearch",
+        "gemini-2.5-pro-deepsearch-async",
+        "gemini-3-pro-deepsearch",
+        "gemini-3-pro-deepsearch-async",
+    }
+)
 
 
 def _is_deepsearch_model(model_id: str) -> bool:
@@ -146,7 +162,9 @@ class TuziAdapter:
                 supports_tools=False,
                 supports_json_schema=False,
             )
-        if mid_l == "suno_music" or (mid_l.startswith("chirp-") and mid_l != "chirp-v3"):
+        if mid_l == "suno_music" or (
+            mid_l.startswith("chirp-") and mid_l != "chirp-v3"
+        ):
             return Capability(
                 input_modalities={"text"},
                 output_modalities={"audio"},
@@ -166,33 +184,47 @@ class TuziAdapter:
             )
         return self._route(model_id).capabilities(model_id)
 
-    def generate(self, request: GenerateRequest, *, stream: bool) -> GenerateResponse | Iterator[GenerateEvent]:
+    def generate(
+        self, request: GenerateRequest, *, stream: bool
+    ) -> GenerateResponse | Iterator[GenerateEvent]:
         model_id = request.model_id()
         mid_l = model_id.lower().strip()
         modalities = set(request.output.modalities)
 
         if modalities == {"video"} and mid_l.startswith("pika-"):
-            raise not_supported_error("tuzi pika endpoints are not available on api.tu-zi.com (returns HTML)")
+            raise not_supported_error(
+                "tuzi pika endpoints are not available on api.tu-zi.com (returns HTML)"
+            )
 
         if modalities == {"video"} and "seedance" in mid_l:
-            raise not_supported_error("doubao seedance video is not supported on tuzi-web (upstream returns multipart: NextPart: EOF)")
+            raise not_supported_error(
+                "doubao seedance video is not supported on tuzi-web (upstream returns multipart: NextPart: EOF)"
+            )
 
         if modalities == {"video"} and mid_l.startswith("kling"):
             if stream:
-                raise invalid_request_error("kling video generation does not support streaming")
+                raise invalid_request_error(
+                    "kling video generation does not support streaming"
+                )
             return self._kling_text2video(request, model_id=model_id)
 
         if modalities == {"video"} and mid_l.startswith("sora-"):
             if stream:
-                raise invalid_request_error("sora video generation does not support streaming")
+                raise invalid_request_error(
+                    "sora video generation does not support streaming"
+                )
             return self._async_chat_video(request, model_id=model_id)
 
         if modalities == {"video"} and mid_l.startswith("runway-"):
-            raise not_supported_error("tuzi runway endpoints are not available on api.tu-zi.com (returns HTML)")
+            raise not_supported_error(
+                "tuzi runway endpoints are not available on api.tu-zi.com (returns HTML)"
+            )
 
         if modalities == {"image"} and mid_l in {"kling_image", "seededit"}:
             if stream:
-                raise invalid_request_error(f"{mid_l} image generation does not support streaming")
+                raise invalid_request_error(
+                    f"{mid_l} image generation does not support streaming"
+                )
             if mid_l == "kling_image" and self._has_image_input(request):
                 return self._route(model_id).generate(request, stream=False)
             if mid_l == "kling_image":
@@ -201,22 +233,33 @@ class TuziAdapter:
 
         if modalities == {"text"} and mid_l == "suno_lyrics":
             if stream:
-                raise invalid_request_error("suno lyrics generation does not support streaming")
+                raise invalid_request_error(
+                    "suno lyrics generation does not support streaming"
+                )
             return self._suno_lyrics(request)
 
         if modalities == {"audio"} and mid_l in _SUNO_WORKFLOW_MODELS:
             if stream:
-                raise invalid_request_error("suno workflow endpoints do not support streaming")
+                raise invalid_request_error(
+                    "suno workflow endpoints do not support streaming"
+                )
             return self._suno_workflow(request, model_id=model_id)
 
-        if modalities == {"audio"} and (mid_l == "suno_music" or (mid_l.startswith("chirp-") and mid_l != "chirp-v3")):
+        if modalities == {"audio"} and (
+            mid_l == "suno_music"
+            or (mid_l.startswith("chirp-") and mid_l != "chirp-v3")
+        ):
             if stream:
-                raise invalid_request_error("suno music generation does not support streaming")
+                raise invalid_request_error(
+                    "suno music generation does not support streaming"
+                )
             return self._suno_music(request, model_id=model_id)
 
         if _is_deepsearch_model(model_id):
             if stream:
-                raise invalid_request_error("deepsearch models do not support streaming; use stream=False")
+                raise invalid_request_error(
+                    "deepsearch models do not support streaming; use stream=False"
+                )
             return self._deepsearch(request, model_id=model_id)
         return self._route(model_id).generate(request, stream=stream)
 
@@ -284,7 +327,9 @@ class TuziAdapter:
         assert isinstance(resp, GenerateResponse)
         return replace(resp, model=f"tuzi-web:{model_id}")
 
-    def _kling_text2image(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _kling_text2image(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         prompt = self._single_text_prompt(request)
         host = self._base_host()
         body: dict[str, object] = {
@@ -323,7 +368,9 @@ class TuziAdapter:
             )
 
         poll_url = f"{host}/kling/v1/images/text2image/{task_id}"
-        budget_ms = 120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        budget_ms = (
+            120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        )
         deadline = time.time() + max(1, budget_ms) / 1000.0
         while True:
             remaining_ms = int((deadline - time.time()) * 1000)
@@ -343,7 +390,9 @@ class TuziAdapter:
                 continue
             status = data.get("task_status")
             if status == "failed":
-                raise provider_error(f"kling task failed: {data.get('task_status_msg')}")
+                raise provider_error(
+                    f"kling task failed: {data.get('task_status_msg')}"
+                )
             if status == "succeed":
                 task_result = data.get("task_result")
                 if isinstance(task_result, dict):
@@ -381,23 +430,31 @@ class TuziAdapter:
             job=JobInfo(job_id=task_id, poll_after_ms=1_000),
         )
 
-    def _async_chat_video(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _async_chat_video(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         if self.openai is None:
-            raise invalid_request_error("NOUS_GENAI_TUZI_OPENAI_API_KEY required for async chat video models")
+            raise invalid_request_error(
+                "NOUS_GENAI_TUZI_OPENAI_API_KEY required for async chat video models"
+            )
 
         api_model, suffix = _sora_api_model_and_prompt_suffix(model_id)
         messages = []
         for msg in request.input:
             role = msg.role if msg.role in {"system", "assistant"} else "user"
-            content = "".join(p.require_text() for p in msg.content if p.type == "text").strip()
-            if not content:
+            text = "".join(
+                p.require_text() for p in msg.content if p.type == "text"
+            ).strip()
+            if not text:
                 continue
             if suffix and role == "user":
-                content = f"{content} {suffix}".strip()
+                text = f"{text} {suffix}".strip()
                 suffix = None
-            messages.append({"role": role, "content": content})
+            messages.append({"role": role, "content": text})
         if not messages:
-            raise invalid_request_error("video generation requires at least one text message")
+            raise invalid_request_error(
+                "video generation requires at least one text message"
+            )
 
         original_url = f"{self.openai.base_url}/chat/completions"
         submit_url = f"{_ASYNCDATA_BASE_URL}/tran/{original_url}"
@@ -424,7 +481,9 @@ class TuziAdapter:
                 job=JobInfo(job_id=task_id, poll_after_ms=2_000),
             )
 
-        content = self._poll_asyncdata_content(task_id=task_id, source_url=source_url, timeout_ms=request.params.timeout_ms)
+        content = self._poll_asyncdata_content(
+            task_id=task_id, source_url=source_url, timeout_ms=request.params.timeout_ms
+        )
         if content is None:
             return GenerateResponse(
                 id=f"sdk_{uuid4().hex}",
@@ -446,11 +505,18 @@ class TuziAdapter:
             output=[Message(role="assistant", content=[part])],
         )
 
-    def _poll_asyncdata_content(self, *, task_id: str, source_url: object, timeout_ms: int | None) -> str | None:
+    def _poll_asyncdata_content(
+        self, *, task_id: str, source_url: object, timeout_ms: int | None
+    ) -> str | None:
         poll_urls: list[str] = []
         if isinstance(source_url, str) and source_url.strip():
             poll_urls.append(source_url.strip())
-        poll_urls.extend([f"{_ASYNCDATA_BASE_URL}/source/{task_id}", f"{_ASYNCDATA_PRO_BASE_URL}/source/{task_id}"])
+        poll_urls.extend(
+            [
+                f"{_ASYNCDATA_BASE_URL}/source/{task_id}",
+                f"{_ASYNCDATA_PRO_BASE_URL}/source/{task_id}",
+            ]
+        )
 
         budget_ms = 120_000 if timeout_ms is None else timeout_ms
         deadline = time.time() + max(1, budget_ms) / 1000.0
@@ -472,14 +538,18 @@ class TuziAdapter:
                     return content
             time.sleep(min(2.0, max(0.0, deadline - time.time())))
 
-    def _kling_text2video(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _kling_text2video(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         prompt = self._single_text_prompt(request)
         host = self._base_host()
         video = request.output.video
         body: dict[str, object] = {
             "prompt": prompt,
             "negative_prompt": "",
-            "aspect_ratio": (video.aspect_ratio if video and video.aspect_ratio else "16:9"),
+            "aspect_ratio": (
+                video.aspect_ratio if video and video.aspect_ratio else "16:9"
+            ),
             "duration": _closest_kling_duration(video.duration_sec if video else None),
             "callback_url": "",
         }
@@ -506,7 +576,9 @@ class TuziAdapter:
             )
 
         poll_url = f"{host}/kling/v1/videos/text2video/{task_id}"
-        budget_ms = 120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        budget_ms = (
+            120_000 if request.params.timeout_ms is None else request.params.timeout_ms
+        )
         deadline = time.time() + max(1, budget_ms) / 1000.0
         while True:
             remaining_ms = int((deadline - time.time()) * 1000)
@@ -526,7 +598,9 @@ class TuziAdapter:
                 continue
             status = data.get("task_status")
             if status == "failed":
-                raise provider_error(f"kling task failed: {data.get('task_status_msg')}")
+                raise provider_error(
+                    f"kling task failed: {data.get('task_status_msg')}"
+                )
             if status == "succeed":
                 task_result = data.get("task_result")
                 if isinstance(task_result, dict):
@@ -536,7 +610,11 @@ class TuziAdapter:
                         if isinstance(first, dict):
                             u = first.get("url")
                             if isinstance(u, str) and u:
-                                part = Part(type="video", mime_type="video/mp4", source=PartSourceUrl(url=u))
+                                part = Part(
+                                    type="video",
+                                    mime_type="video/mp4",
+                                    source=PartSourceUrl(url=u),
+                                )
                                 return GenerateResponse(
                                     id=f"sdk_{uuid4().hex}",
                                     provider="tuzi-web",
@@ -576,7 +654,9 @@ class TuziAdapter:
             wait=request.wait,
         )
 
-    def _suno_music(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _suno_music(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         prompt = self._single_text_prompt(request)
         host = self._base_host()
         mv = model_id if model_id.lower().startswith("chirp-") else "chirp-v3-5"
@@ -626,7 +706,9 @@ class TuziAdapter:
             return f"/suno/submit/{suffix}"
         raise invalid_request_error(f"unsupported suno workflow model: {model_id}")
 
-    def _suno_workflow(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _suno_workflow(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         host = self._base_host()
         endpoint = self._suno_workflow_endpoint(model_id)
 
@@ -657,7 +739,9 @@ class TuziAdapter:
             wait=request.wait,
         )
 
-    def _suno_fetch(self, *, host: str, task_id: str, timeout_ms: int | None) -> dict[str, object]:
+    def _suno_fetch(
+        self, *, host: str, task_id: str, timeout_ms: int | None
+    ) -> dict[str, object]:
         obj = request_json(
             method="GET",
             url=f"{host}/suno/fetch/{task_id}",
@@ -671,7 +755,9 @@ class TuziAdapter:
             raise provider_error("suno fetch missing data")
         return data
 
-    def _suno_wait_fetch_text(self, *, task_id: str, model_id: str, timeout_ms: int | None, wait: bool) -> GenerateResponse:
+    def _suno_wait_fetch_text(
+        self, *, task_id: str, model_id: str, timeout_ms: int | None, wait: bool
+    ) -> GenerateResponse:
         if not wait:
             return GenerateResponse(
                 id=f"sdk_{uuid4().hex}",
@@ -687,7 +773,9 @@ class TuziAdapter:
             remaining_ms = int((deadline - time.time()) * 1000)
             if remaining_ms <= 0:
                 break
-            data = self._suno_fetch(host=host, task_id=task_id, timeout_ms=min(30_000, remaining_ms))
+            data = self._suno_fetch(
+                host=host, task_id=task_id, timeout_ms=min(30_000, remaining_ms)
+            )
             status = data.get("status")
             if status == "SUCCESS":
                 inner = data.get("data")
@@ -699,7 +787,11 @@ class TuziAdapter:
                             provider="tuzi-web",
                             model=f"tuzi-web:{model_id}",
                             status="completed",
-                            output=[Message(role="assistant", content=[Part.from_text(text)])],
+                            output=[
+                                Message(
+                                    role="assistant", content=[Part.from_text(text)]
+                                )
+                            ],
                         )
                 raise provider_error("suno lyrics succeeded but missing text")
             if status == "FAIL":
@@ -714,7 +806,9 @@ class TuziAdapter:
             job=JobInfo(job_id=task_id, poll_after_ms=2_000),
         )
 
-    def _suno_wait_fetch_audio(self, *, task_id: str, model_id: str, timeout_ms: int | None, wait: bool) -> GenerateResponse:
+    def _suno_wait_fetch_audio(
+        self, *, task_id: str, model_id: str, timeout_ms: int | None, wait: bool
+    ) -> GenerateResponse:
         if not wait:
             return GenerateResponse(
                 id=f"sdk_{uuid4().hex}",
@@ -730,7 +824,9 @@ class TuziAdapter:
             remaining_ms = int((deadline - time.time()) * 1000)
             if remaining_ms <= 0:
                 break
-            data = self._suno_fetch(host=host, task_id=task_id, timeout_ms=min(30_000, remaining_ms))
+            data = self._suno_fetch(
+                host=host, task_id=task_id, timeout_ms=min(30_000, remaining_ms)
+            )
             status = data.get("status")
             if status == "SUCCESS":
                 inner = data.get("data")
@@ -760,7 +856,11 @@ class TuziAdapter:
                     if u:
                         urls.append(u)
                 if urls:
-                    part = Part(type="audio", mime_type="audio/mpeg", source=PartSourceUrl(url=urls[0]))
+                    part = Part(
+                        type="audio",
+                        mime_type="audio/mpeg",
+                        source=PartSourceUrl(url=urls[0]),
+                    )
                     return GenerateResponse(
                         id=f"sdk_{uuid4().hex}",
                         provider="tuzi-web",
@@ -781,7 +881,9 @@ class TuziAdapter:
             job=JobInfo(job_id=task_id, poll_after_ms=2_000),
         )
 
-    def _suno_wait_fetch_any(self, *, task_id: str, model_id: str, timeout_ms: int | None, wait: bool) -> GenerateResponse:
+    def _suno_wait_fetch_any(
+        self, *, task_id: str, model_id: str, timeout_ms: int | None, wait: bool
+    ) -> GenerateResponse:
         if not wait:
             return GenerateResponse(
                 id=f"sdk_{uuid4().hex}",
@@ -797,7 +899,9 @@ class TuziAdapter:
             remaining_ms = int((deadline - time.time()) * 1000)
             if remaining_ms <= 0:
                 break
-            data = self._suno_fetch(host=host, task_id=task_id, timeout_ms=min(30_000, remaining_ms))
+            data = self._suno_fetch(
+                host=host, task_id=task_id, timeout_ms=min(30_000, remaining_ms)
+            )
             status = data.get("status")
             if status == "SUCCESS":
                 inner = data.get("data")
@@ -824,14 +928,28 @@ class TuziAdapter:
                     if u:
                         audio_urls.append(u)
                 for u in audio_urls:
-                    parts.append(Part(type="audio", mime_type="audio/mpeg", source=PartSourceUrl(url=u)))
+                    parts.append(
+                        Part(
+                            type="audio",
+                            mime_type="audio/mpeg",
+                            source=PartSourceUrl(url=u),
+                        )
+                    )
 
                 mp4 = _extract_first_url(_MP4_URL_RE, blob)
                 if mp4:
-                    parts.append(Part(type="video", mime_type="video/mp4", source=PartSourceUrl(url=mp4)))
+                    parts.append(
+                        Part(
+                            type="video",
+                            mime_type="video/mp4",
+                            source=PartSourceUrl(url=mp4),
+                        )
+                    )
 
                 if not parts:
-                    parts.append(Part.from_text(blob if blob and blob != "null" else "{}"))
+                    parts.append(
+                        Part.from_text(blob if blob and blob != "null" else "{}")
+                    )
 
                 return GenerateResponse(
                     id=f"sdk_{uuid4().hex}",
@@ -852,10 +970,14 @@ class TuziAdapter:
             job=JobInfo(job_id=task_id, poll_after_ms=2_000),
         )
 
-    def _deepsearch(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _deepsearch(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         """Handle deepsearch models via asyncdata.net async API."""
         if self.openai is None:
-            raise invalid_request_error("NOUS_GENAI_TUZI_OPENAI_API_KEY required for deepsearch models")
+            raise invalid_request_error(
+                "NOUS_GENAI_TUZI_OPENAI_API_KEY required for deepsearch models"
+            )
 
         # Build chat completions body
         messages = []
@@ -867,16 +989,16 @@ class TuziAdapter:
                 role = "assistant"
             else:
                 role = "user"
-            content = "".join(p.require_text() for p in msg.content if p.type == "text")
-            if content:
-                messages.append({"role": role, "content": content})
+            text = "".join(p.require_text() for p in msg.content if p.type == "text")
+            if text:
+                messages.append({"role": role, "content": text})
 
         if not messages:
             raise invalid_request_error("deepsearch requires at least one message")
 
         # asyncdata.net requires -async suffix for deepsearch models
         api_model_id = model_id if model_id.endswith("-async") else f"{model_id}-async"
-        body = {"model": api_model_id, "messages": messages}
+        body: dict[str, Any] = {"model": api_model_id, "messages": messages}
         if request.params.temperature is not None:
             body["temperature"] = request.params.temperature
 

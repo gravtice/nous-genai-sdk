@@ -12,7 +12,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from nous.genai import (
+from nous.genai import (  # noqa: E402
     Client,
     GenAIError,
     GenerateParams,
@@ -105,8 +105,16 @@ def _extract_first_binary_part(resp, kind: str) -> dict[str, Any] | None:
                     "base64_chars": len(src.data),
                 }
             if isinstance(src.data, (bytes, bytearray)):
-                return {"kind": "bytes", "mime_type": part.mime_type, "bytes": len(src.data)}
-            return {"kind": "bytes", "mime_type": part.mime_type, "data_type": type(src.data).__name__}
+                return {
+                    "kind": "bytes",
+                    "mime_type": part.mime_type,
+                    "bytes": len(src.data),
+                }
+            return {
+                "kind": "bytes",
+                "mime_type": part.mime_type,
+                "data_type": type(src.data).__name__,
+            }
         if src.kind == "ref":
             ref = f"{src.provider}:{src.id}" if src.provider else src.id
             return {"kind": "ref", "mime_type": part.mime_type, "ref": ref}
@@ -136,7 +144,9 @@ def _ensure_sample_wav(path: Path) -> str:
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         for i in range(frames):
-            val = int(amp * 32767.0 * math.sin(2.0 * math.pi * freq_hz * i / sample_rate))
+            val = int(
+                amp * 32767.0 * math.sin(2.0 * math.pi * freq_hz * i / sample_rate)
+            )
             wf.writeframes(struct.pack("<h", val))
 
     return str(path)
@@ -149,12 +159,16 @@ def _ensure_sample_png(path: Path) -> str:
     import base64
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wIAAgMBAp9G5xkAAAAASUVORK5CYII=")
+    data = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wIAAgMBAp9G5xkAAAAASUVORK5CYII="
+    )
     path.write_bytes(data)
     return str(path)
 
 
-def _request_for_group(group: str, *, sample_wav_path: str) -> tuple[GenerateRequest, dict[str, Any], int]:
+def _request_for_group(
+    group: str, *, sample_wav_path: str
+) -> tuple[GenerateRequest, dict[str, Any], int]:
     if group == "image":
         timeout_ms = 45_000
         output = OutputSpec(modalities=["image"], image=OutputImageSpec(n=1))
@@ -162,12 +176,17 @@ def _request_for_group(group: str, *, sample_wav_path: str) -> tuple[GenerateReq
         wait = True
     elif group == "audio":
         timeout_ms = 30_000
-        output = OutputSpec(modalities=["audio"], audio=OutputAudioSpec(voice="alloy", format="mp3"))
+        output = OutputSpec(
+            modalities=["audio"], audio=OutputAudioSpec(voice="alloy", format="mp3")
+        )
         prompt = "Say OK."
         wait = True
     elif group == "video":
         timeout_ms = 150_000
-        output = OutputSpec(modalities=["video"], video=OutputVideoSpec(duration_sec=10, aspect_ratio="16:9"))
+        output = OutputSpec(
+            modalities=["video"],
+            video=OutputVideoSpec(duration_sec=10, aspect_ratio="16:9"),
+        )
         prompt = "A 10 second video of a red square on a white background."
         wait = False
     elif group == "embedding":
@@ -188,7 +207,13 @@ def _request_for_group(group: str, *, sample_wav_path: str) -> tuple[GenerateReq
 
     parts = [Part.from_text(prompt)]
     if group == "transcription":
-        parts.append(Part(type="audio", mime_type="audio/wav", source=PartSourcePath(path=sample_wav_path)))
+        parts.append(
+            Part(
+                type="audio",
+                mime_type="audio/wav",
+                source=PartSourcePath(path=sample_wav_path),
+            )
+        )
 
     req = GenerateRequest(
         model="",
@@ -196,14 +221,20 @@ def _request_for_group(group: str, *, sample_wav_path: str) -> tuple[GenerateReq
         output=output,
         wait=wait,
     )
-    meta = {"output_modalities": list(output.modalities), "wait": wait, "timeout_ms": timeout_ms}
+    meta = {
+        "output_modalities": list(output.modalities),
+        "wait": wait,
+        "timeout_ms": timeout_ms,
+    }
     return req, meta, timeout_ms
 
 
 def main() -> int:
     client = Client()
     if getattr(client, "_tuzi_web", None) is None:
-        raise SystemExit("TUZI_WEB_API_KEY not configured (NOUS_GENAI_TUZI_WEB_API_KEY/TUZI_WEB_API_KEY)")
+        raise SystemExit(
+            "TUZI_WEB_API_KEY not configured (NOUS_GENAI_TUZI_WEB_API_KEY/TUZI_WEB_API_KEY)"
+        )
 
     from nous.genai.reference import get_model_catalog
 
@@ -215,14 +246,24 @@ def main() -> int:
     failures_path = out_dir / f"{base}.failures.tsv"
     summary_path = out_dir / f"{base}.summary.json"
 
-    models = [m for m in get_model_catalog().get("tuzi-web", []) if isinstance(m, str) and m.strip()]
+    models = [
+        m
+        for m in get_model_catalog().get("tuzi-web", [])
+        if isinstance(m, str) and m.strip()
+    ]
     seen: set[str] = set()
     models = [m for m in models if m not in seen and not seen.add(m)]
 
     t0 = time.time()
     pass_n = 0
     fail_n = 0
-    group_counts: dict[str, int] = {"text": 0, "image": 0, "audio": 0, "video": 0, "unknown": 0}
+    group_counts: dict[str, int] = {
+        "text": 0,
+        "image": 0,
+        "audio": 0,
+        "video": 0,
+        "unknown": 0,
+    }
     failures: list[dict[str, str]] = []
     sample_wav_path = _ensure_sample_wav(out_dir / "smoke-sample.wav")
     sample_png_path = _ensure_sample_png(out_dir / "smoke-sample.png")
@@ -239,7 +280,9 @@ def main() -> int:
                 group = _group_for_capabilities(cap)
                 group_counts[group] = group_counts.get(group, 0) + 1
 
-                base_req, req_meta, timeout_ms = _request_for_group(group, sample_wav_path=sample_wav_path)
+                base_req, req_meta, timeout_ms = _request_for_group(
+                    group, sample_wav_path=sample_wav_path
+                )
                 wait = base_req.wait
                 if cap.supports_job:
                     wait = False
@@ -263,10 +306,16 @@ def main() -> int:
                     wait=wait,
                 )
 
-                row.update({"capabilities": cap_dict, "group": group, "request": req_meta})
+                row.update(
+                    {"capabilities": cap_dict, "group": group, "request": req_meta}
+                )
                 resp = client.generate(req)
                 row["seconds"] = round(time.time() - t1, 3)
-                row["response"] = {"status": resp.status, "provider": resp.provider, "model": resp.model}
+                row["response"] = {
+                    "status": resp.status,
+                    "provider": resp.provider,
+                    "model": resp.model,
+                }
 
                 if resp.status not in {"completed", "running"}:
                     err = getattr(resp, "error", None)
@@ -285,7 +334,9 @@ def main() -> int:
                     )
                 else:
                     result: dict[str, Any] = {"ok": True}
-                    if getattr(resp, "job", None) is not None and getattr(resp.job, "job_id", None):
+                    if getattr(resp, "job", None) is not None and getattr(
+                        resp.job, "job_id", None
+                    ):
                         result["job"] = resp.job.job_id
                     if resp.status == "completed":
                         if group in {"text", "transcription"}:
@@ -348,7 +399,9 @@ def main() -> int:
         "report": str(report_path),
         "group_counts": group_counts,
     }
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     with failures_path.open("w", encoding="utf-8") as f:
         f.write("model\tgroup\terror_type\tprovider_code\tmessage\n")

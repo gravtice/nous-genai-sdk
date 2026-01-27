@@ -24,4 +24,3 @@ CAPABILITY_OVERRIDES: dict[str, dict[str, CapabilityOverride]] = {
     #     "some-model-id": {"supports_stream": False, "supports_job": True},
     # },
 }
-

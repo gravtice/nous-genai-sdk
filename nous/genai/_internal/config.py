@@ -70,14 +70,22 @@ class ProviderKeys:
 
 def get_provider_keys() -> ProviderKeys:
     return ProviderKeys(
-        openai_api_key=get_prefixed_env("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY"),
-        google_api_key=get_prefixed_env("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY"),
-        anthropic_api_key=get_prefixed_env("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"),
-        aliyun_api_key=get_prefixed_env("ALIYUN_API_KEY") or os.environ.get("ALIYUN_API_KEY"),
-        volcengine_api_key=get_prefixed_env("VOLCENGINE_API_KEY") or os.environ.get("VOLCENGINE_API_KEY"),
-        tuzi_web_api_key=get_prefixed_env("TUZI_WEB_API_KEY") or os.environ.get("TUZI_WEB_API_KEY"),
-        tuzi_openai_api_key=get_prefixed_env("TUZI_OPENAI_API_KEY") or os.environ.get("TUZI_OPENAI_API_KEY"),
-        tuzi_google_api_key=get_prefixed_env("TUZI_GOOGLE_API_KEY") or os.environ.get("TUZI_GOOGLE_API_KEY"),
+        openai_api_key=get_prefixed_env("OPENAI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY"),
+        google_api_key=get_prefixed_env("GOOGLE_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY"),
+        anthropic_api_key=get_prefixed_env("ANTHROPIC_API_KEY")
+        or os.environ.get("ANTHROPIC_API_KEY"),
+        aliyun_api_key=get_prefixed_env("ALIYUN_API_KEY")
+        or os.environ.get("ALIYUN_API_KEY"),
+        volcengine_api_key=get_prefixed_env("VOLCENGINE_API_KEY")
+        or os.environ.get("VOLCENGINE_API_KEY"),
+        tuzi_web_api_key=get_prefixed_env("TUZI_WEB_API_KEY")
+        or os.environ.get("TUZI_WEB_API_KEY"),
+        tuzi_openai_api_key=get_prefixed_env("TUZI_OPENAI_API_KEY")
+        or os.environ.get("TUZI_OPENAI_API_KEY"),
+        tuzi_google_api_key=get_prefixed_env("TUZI_GOOGLE_API_KEY")
+        or os.environ.get("TUZI_GOOGLE_API_KEY"),
         tuzi_anthropic_api_key=get_prefixed_env("TUZI_ANTHROPIC_API_KEY")
         or os.environ.get("TUZI_ANTHROPIC_API_KEY"),
     )

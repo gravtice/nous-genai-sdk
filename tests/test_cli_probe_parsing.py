@@ -19,4 +19,3 @@ class TestCliProbeParsing(unittest.TestCase):
 
         with self.assertRaises(SystemExit):
             _parse_probe_models("openai", "google:gemini-2.0-flash")
-

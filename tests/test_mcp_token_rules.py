@@ -18,7 +18,9 @@ class TestMcpTokenRules(unittest.TestCase):
     def test_parse_bracket_rules_supports_models_and_providers(self) -> None:
         from nous.genai.mcp_server import _parse_mcp_token_scopes
 
-        scopes = _parse_mcp_token_scopes("t1: [openai google openai:gpt-4o-mini]; t2: [openai:gpt-4o-mini]")
+        scopes = _parse_mcp_token_scopes(
+            "t1: [openai google openai:gpt-4o-mini]; t2: [openai:gpt-4o-mini]"
+        )
         self.assertEqual(set(scopes.keys()), {"t1", "t2"})
 
         t1 = scopes["t1"]
@@ -39,11 +41,17 @@ class TestMcpTokenRules(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("missing dependency: mcp")
 
-        from nous.genai.mcp_server import _REQUEST_TOKEN, _parse_mcp_token_scopes, build_server
+        from nous.genai.mcp_server import (
+            _REQUEST_TOKEN,
+            _parse_mcp_token_scopes,
+            build_server,
+        )
         from nous.genai.types import GenerateResponse, Message, Part
         from mcp.server.fastmcp.exceptions import ToolError
 
-        scopes = _parse_mcp_token_scopes("t1: [openai google]; t2: [openai:gpt-4o-mini]")
+        scopes = _parse_mcp_token_scopes(
+            "t1: [openai google]; t2: [openai:gpt-4o-mini]"
+        )
 
         def fake_adapter(_self, provider: str):
             return object()
@@ -93,8 +101,14 @@ class TestMcpTokenRules(unittest.TestCase):
             output=[Message(role="assistant", content=[Part(type="text", text="ok")])],
         )
 
-        with patch("nous.genai.reference.get_model_catalog", return_value={"openai": [], "google": []}):
-            with patch("nous.genai.reference.get_supported_providers", return_value=["openai", "google"]):
+        with patch(
+            "nous.genai.reference.get_model_catalog",
+            return_value={"openai": [], "google": []},
+        ):
+            with patch(
+                "nous.genai.reference.get_supported_providers",
+                return_value=["openai", "google"],
+            ):
                 with patch(
                     "nous.genai.reference.get_sdk_supported_models_for_provider",
                     side_effect=fake_supported_for_provider,
@@ -105,8 +119,12 @@ class TestMcpTokenRules(unittest.TestCase):
                             autospec=True,
                             side_effect=fake_list_available_models,
                         ) as list_mock:
-                            with patch("nous.genai.client.Client.generate", return_value=resp) as gen_mock:
-                                server = build_server(host="127.0.0.1", port=7001, token_scopes=scopes)
+                            with patch(
+                                "nous.genai.client.Client.generate", return_value=resp
+                            ) as gen_mock:
+                                server = build_server(
+                                    host="127.0.0.1", port=7001, token_scopes=scopes
+                                )
 
                                 ctx = _REQUEST_TOKEN.set("t2")
                                 try:
@@ -114,35 +132,58 @@ class TestMcpTokenRules(unittest.TestCase):
                                     self.assertEqual(out["supported"], ["openai"])
                                     self.assertEqual(out["configured"], ["openai"])
 
-                                    models = _call_tool(server, "list_available_models", {"provider": "openai"})
+                                    models = _call_tool(
+                                        server,
+                                        "list_available_models",
+                                        {"provider": "openai"},
+                                    )
                                     self.assertEqual(
                                         [m["model"] for m in models["models"]],
                                         ["openai:gpt-4o-mini"],
                                     )
 
                                     with self.assertRaises(ToolError):
-                                        _call_tool(server, "list_available_models", {"provider": "google"})
+                                        _call_tool(
+                                            server,
+                                            "list_available_models",
+                                            {"provider": "google"},
+                                        )
 
-                                    all_models = _call_tool(server, "list_all_available_models", {})
+                                    all_models = _call_tool(
+                                        server, "list_all_available_models", {}
+                                    )
                                     self.assertEqual(
                                         [m["model"] for m in all_models["models"]],
                                         ["openai:gpt-4o-mini"],
                                     )
-                                    providers = [c.args[1] for c in list_mock.call_args_list]
+                                    providers = [
+                                        c.args[1] for c in list_mock.call_args_list
+                                    ]
                                     self.assertEqual(set(providers), {"openai"})
 
                                     req = {
                                         "model": "openai:gpt-4o-mini",
-                                        "input": [{"role": "user", "content": [{"type": "text", "text": "x"}]}],
+                                        "input": [
+                                            {
+                                                "role": "user",
+                                                "content": [
+                                                    {"type": "text", "text": "x"}
+                                                ],
+                                            }
+                                        ],
                                         "output": {"modalities": ["text"]},
                                     }
-                                    gen_out = _call_tool(server, "generate", {"request": req})
+                                    gen_out = _call_tool(
+                                        server, "generate", {"request": req}
+                                    )
                                     self.assertEqual(gen_out["status"], "completed")
                                     self.assertTrue(gen_mock.called)
 
                                     req_bad = dict(req)
                                     req_bad["model"] = "openai:gpt-4.1"
                                     with self.assertRaises(ToolError):
-                                        _call_tool(server, "generate", {"request": req_bad})
+                                        _call_tool(
+                                            server, "generate", {"request": req_bad}
+                                        )
                                 finally:
                                     _REQUEST_TOKEN.reset(ctx)

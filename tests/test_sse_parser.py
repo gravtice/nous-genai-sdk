@@ -24,8 +24,8 @@ class TestSseParser(unittest.TestCase):
                 b"event: message\n",
                 b"id: abc123\n",
                 b"retry: 5000\n",
-                b"data: {\"a\":1}\n",
-                b"data: {\"b\":2}\n",
+                b'data: {"a":1}\n',
+                b'data: {"b":2}\n',
                 b"\n",
             ]
         )
@@ -66,4 +66,3 @@ class TestSseParser(unittest.TestCase):
         )
         events = list(_iter_sse_events(resp))
         self.assertEqual(events, [SSEEvent(data="", event=None, id="1", retry=None)])
-

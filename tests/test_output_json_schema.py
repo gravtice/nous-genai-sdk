@@ -89,7 +89,13 @@ class TestOutputTextJsonSchema(unittest.TestCase):
             self.skipTest("missing dependency: pydantic")
 
         from nous.genai.providers.gemini import GeminiAdapter
-        from nous.genai.types import GenerateRequest, Message, OutputSpec, OutputTextSpec, Part
+        from nous.genai.types import (
+            GenerateRequest,
+            Message,
+            OutputSpec,
+            OutputTextSpec,
+            Part,
+        )
 
         class Child(BaseModel):
             x: int
@@ -102,7 +108,10 @@ class TestOutputTextJsonSchema(unittest.TestCase):
         req = GenerateRequest(
             model="google:gemini-1.5-flash",
             input=[Message(role="user", content=[Part.from_text("hi")])],
-            output=OutputSpec(modalities=["text"], text=OutputTextSpec(format="json", json_schema=schema)),
+            output=OutputSpec(
+                modalities=["text"],
+                text=OutputTextSpec(format="json", json_schema=schema),
+            ),
         )
 
         adapter = GeminiAdapter(api_key="dummy")
@@ -151,7 +160,10 @@ class TestOutputTextJsonSchema(unittest.TestCase):
         req = GenerateRequest(
             model="dummy:demo",
             input=[Message(role="user", content=[Part.from_text("hi")])],
-            output=OutputSpec(modalities=["text"], text=OutputTextSpec(format="json", json_schema=gemini_schema)),
+            output=OutputSpec(
+                modalities=["text"],
+                text=OutputTextSpec(format="json", json_schema=gemini_schema),
+            ),
         )
 
         class DummyAdapter:
@@ -175,7 +187,10 @@ class TestOutputTextJsonSchema(unittest.TestCase):
         req_google = GenerateRequest(
             model="google:gemini-1.5-flash",
             input=[Message(role="user", content=[Part.from_text("hi")])],
-            output=OutputSpec(modalities=["text"], text=OutputTextSpec(format="json", json_schema=gemini_schema)),
+            output=OutputSpec(
+                modalities=["text"],
+                text=OutputTextSpec(format="json", json_schema=gemini_schema),
+            ),
         )
         adapter = GeminiAdapter(api_key="dummy")
         with self.assertRaises(GenAIError) as ctx2:

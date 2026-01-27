@@ -26,7 +26,9 @@ class TestClientProtectedUrlArtifacts(unittest.TestCase):
                 return {"x-goog-api-key": "k"}
 
         def fake_download_to_tempfile(**_kwargs) -> str:
-            with tempfile.NamedTemporaryFile(prefix="genaisdk-test-", delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                prefix="genaisdk-test-", delete=False
+            ) as f:
                 f.write(b"video-bytes")
                 return f.name
 
@@ -52,8 +54,13 @@ class TestClientProtectedUrlArtifacts(unittest.TestCase):
             ],
         )
 
-        with patch("nous.genai.client.download_to_tempfile", side_effect=fake_download_to_tempfile):
-            out = client._externalize_protected_url_parts(resp, adapter=DummyAdapter(), timeout_ms=1)
+        with patch(
+            "nous.genai.client.download_to_tempfile",
+            side_effect=fake_download_to_tempfile,
+        ):
+            out = client._externalize_protected_url_parts(
+                resp, adapter=DummyAdapter(), timeout_ms=1
+            )
 
         part = out.output[0].content[0]
         assert part.source is not None
@@ -75,9 +82,12 @@ class TestClientProtectedUrlArtifacts(unittest.TestCase):
         def fake_download_to_file(**kwargs) -> None:
             captured.update(kwargs)
 
-        with patch.object(client, "_adapter", return_value=DummyAdapter()), patch(
-            "nous.genai.client._download_to_file",
-            side_effect=fake_download_to_file,
+        with (
+            patch.object(client, "_adapter", return_value=DummyAdapter()),
+            patch(
+                "nous.genai.client._download_to_file",
+                side_effect=fake_download_to_file,
+            ),
         ):
             client.download_to_file(
                 provider="google",
@@ -87,9 +97,12 @@ class TestClientProtectedUrlArtifacts(unittest.TestCase):
         self.assertEqual(captured.get("headers"), {"x-goog-api-key": "k"})
 
         captured.clear()
-        with patch.object(client, "_adapter", return_value=DummyAdapter()), patch(
-            "nous.genai.client._download_to_file",
-            side_effect=fake_download_to_file,
+        with (
+            patch.object(client, "_adapter", return_value=DummyAdapter()),
+            patch(
+                "nous.genai.client._download_to_file",
+                side_effect=fake_download_to_file,
+            ),
         ):
             client.download_to_file(
                 provider="google",
@@ -97,4 +110,3 @@ class TestClientProtectedUrlArtifacts(unittest.TestCase):
                 output_path="out.mp4",
             )
         self.assertIsNone(captured.get("headers"))
-

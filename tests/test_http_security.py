@@ -5,7 +5,9 @@ from unittest.mock import patch
 
 
 class _FakeHttpResponse:
-    def __init__(self, *, status: int, headers: dict[str, str] | None = None, body: bytes = b"") -> None:
+    def __init__(
+        self, *, status: int, headers: dict[str, str] | None = None, body: bytes = b""
+    ) -> None:
         self.status = status
         self._headers = {k.lower(): v for k, v in (headers or {}).items()}
         self._body = body
@@ -33,7 +35,13 @@ class _FakeHttpConnection:
         self.request_args: tuple[str, str] | None = None
         self.request_headers: dict[str, str] | None = None
 
-    def request(self, method: str, path: str, body: object = None, headers: dict[str, str] | None = None):  # noqa: ARG002
+    def request(
+        self,
+        method: str,
+        path: str,
+        body: object = None,
+        headers: dict[str, str] | None = None,
+    ):  # noqa: ARG002
         self.request_args = (method, path)
         self.request_headers = dict(headers or {})
 
@@ -58,28 +66,48 @@ class TestUrlDownloadPinsIpAgainstDnsRebinding(unittest.TestCase):
             calls["rebind.example"] += 1
             if calls["rebind.example"] == 1:
                 return [
-                    (socket.AF_INET, socket.SOCK_STREAM, proto, "", ("93.184.216.34", 0)),
+                    (
+                        socket.AF_INET,
+                        socket.SOCK_STREAM,
+                        proto,
+                        "",
+                        ("93.184.216.34", 0),
+                    ),
                 ]
             return [
                 (socket.AF_INET, socket.SOCK_STREAM, proto, "", ("127.0.0.1", 0)),
             ]
 
-        def _fake_make_connection(parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None):  # type: ignore[no-untyped-def]
+        def _fake_make_connection(
+            parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None
+        ):  # type: ignore[no-untyped-def]
             self.assertIsNone(proxy_url)
             self.assertEqual(parsed.hostname, "rebind.example")
             self.assertEqual(connect_host, "93.184.216.34")
             self.assertEqual(tls_server_hostname, "rebind.example")
             body = b"ok"
-            resp = _FakeHttpResponse(status=200, headers={"Content-Length": str(len(body))}, body=body)
+            resp = _FakeHttpResponse(
+                status=200, headers={"Content-Length": str(len(body))}, body=body
+            )
             return _FakeHttpConnection(resp)
 
         import socket
 
         with tempfile.TemporaryDirectory(prefix="genaisdk-test-") as d:
             out_path = os.path.join(d, "out.bin")
-            with patch("nous.genai._internal.http.socket.getaddrinfo", side_effect=_fake_getaddrinfo):
-                with patch("nous.genai._internal.http._make_connection", side_effect=_fake_make_connection):
-                    download_to_file(url="http://rebind.example/x", output_path=out_path, timeout_ms=100)
+            with patch(
+                "nous.genai._internal.http.socket.getaddrinfo",
+                side_effect=_fake_getaddrinfo,
+            ):
+                with patch(
+                    "nous.genai._internal.http._make_connection",
+                    side_effect=_fake_make_connection,
+                ):
+                    download_to_file(
+                        url="http://rebind.example/x",
+                        output_path=out_path,
+                        timeout_ms=100,
+                    )
 
             with open(out_path, "rb") as f:
                 self.assertEqual(f.read(), b"ok")
@@ -119,22 +147,38 @@ class TestUrlDownloadRedirectAndLimits(unittest.TestCase):
 
         calls: list[str] = []
 
-        def _fake_make_connection(parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None):  # type: ignore[no-untyped-def]
+        def _fake_make_connection(
+            parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None
+        ):  # type: ignore[no-untyped-def]
             self.assertIsNone(proxy_url)
             self.assertEqual(parsed.hostname, "public.example")
             self.assertEqual(connect_host, "93.184.216.34")
             self.assertEqual(tls_server_hostname, "public.example")
             calls.append("public.example")
-            resp = _FakeHttpResponse(status=302, headers={"Location": "http://private.example/secret"})
+            resp = _FakeHttpResponse(
+                status=302, headers={"Location": "http://private.example/secret"}
+            )
             return _FakeHttpConnection(resp)
 
         with tempfile.TemporaryDirectory(prefix="genaisdk-test-") as d:
             out_path = os.path.join(d, "out.bin")
-            with patch.dict(os.environ, {"NOUS_GENAI_ALLOW_PRIVATE_URLS": "0"}, clear=False):
-                with patch("nous.genai._internal.http._resolve_url_host_ips", side_effect=_fake_resolve):
-                    with patch("nous.genai._internal.http._make_connection", side_effect=_fake_make_connection):
+            with patch.dict(
+                os.environ, {"NOUS_GENAI_ALLOW_PRIVATE_URLS": "0"}, clear=False
+            ):
+                with patch(
+                    "nous.genai._internal.http._resolve_url_host_ips",
+                    side_effect=_fake_resolve,
+                ):
+                    with patch(
+                        "nous.genai._internal.http._make_connection",
+                        side_effect=_fake_make_connection,
+                    ):
                         with self.assertRaises(GenAIError) as cm:
-                            download_to_file(url="http://public.example/start", output_path=out_path, timeout_ms=100)
+                            download_to_file(
+                                url="http://public.example/start",
+                                output_path=out_path,
+                                timeout_ms=100,
+                            )
 
         self.assertEqual(cm.exception.info.type, "InvalidRequestError")
         self.assertIn("private/loopback", cm.exception.info.message)
@@ -150,20 +194,35 @@ class TestUrlDownloadRedirectAndLimits(unittest.TestCase):
             self.assertEqual(host, "public.example")
             return ([ipaddress.ip_address("93.184.216.34")], False)
 
-        def _fake_make_connection(parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None):  # type: ignore[no-untyped-def]
+        def _fake_make_connection(
+            parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None
+        ):  # type: ignore[no-untyped-def]
             self.assertIsNone(proxy_url)
             self.assertEqual(parsed.hostname, "public.example")
             self.assertEqual(connect_host, "93.184.216.34")
             self.assertEqual(tls_server_hostname, "public.example")
-            resp = _FakeHttpResponse(status=200, headers={"Content-Length": "4"}, body=b"test")
+            resp = _FakeHttpResponse(
+                status=200, headers={"Content-Length": "4"}, body=b"test"
+            )
             return _FakeHttpConnection(resp)
 
         with tempfile.TemporaryDirectory(prefix="genaisdk-test-") as d:
             out_path = os.path.join(d, "out.bin")
-            with patch("nous.genai._internal.http._resolve_url_host_ips", side_effect=_fake_resolve):
-                with patch("nous.genai._internal.http._make_connection", side_effect=_fake_make_connection):
+            with patch(
+                "nous.genai._internal.http._resolve_url_host_ips",
+                side_effect=_fake_resolve,
+            ):
+                with patch(
+                    "nous.genai._internal.http._make_connection",
+                    side_effect=_fake_make_connection,
+                ):
                     with self.assertRaises(GenAIError) as cm:
-                        download_to_file(url="http://public.example/x", output_path=out_path, timeout_ms=100, max_bytes=3)
+                        download_to_file(
+                            url="http://public.example/x",
+                            output_path=out_path,
+                            timeout_ms=100,
+                            max_bytes=3,
+                        )
 
         self.assertEqual(cm.exception.info.type, "NotSupportedError")
         self.assertIn("url download too large", cm.exception.info.message)
@@ -178,7 +237,9 @@ class TestUrlDownloadRedirectAndLimits(unittest.TestCase):
             self.assertEqual(host, "public.example")
             return ([ipaddress.ip_address("93.184.216.34")], False)
 
-        def _fake_make_connection(parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None):  # type: ignore[no-untyped-def]
+        def _fake_make_connection(
+            parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None
+        ):  # type: ignore[no-untyped-def]
             self.assertIsNone(proxy_url)
             self.assertEqual(parsed.hostname, "public.example")
             self.assertEqual(connect_host, "93.184.216.34")
@@ -188,10 +249,21 @@ class TestUrlDownloadRedirectAndLimits(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix="genaisdk-test-") as d:
             out_path = os.path.join(d, "out.bin")
-            with patch("nous.genai._internal.http._resolve_url_host_ips", side_effect=_fake_resolve):
-                with patch("nous.genai._internal.http._make_connection", side_effect=_fake_make_connection):
+            with patch(
+                "nous.genai._internal.http._resolve_url_host_ips",
+                side_effect=_fake_resolve,
+            ):
+                with patch(
+                    "nous.genai._internal.http._make_connection",
+                    side_effect=_fake_make_connection,
+                ):
                     with self.assertRaises(GenAIError) as cm:
-                        download_to_file(url="http://public.example/x", output_path=out_path, timeout_ms=100, max_bytes=3)
+                        download_to_file(
+                            url="http://public.example/x",
+                            output_path=out_path,
+                            timeout_ms=100,
+                            max_bytes=3,
+                        )
             self.assertFalse(os.path.exists(out_path))
 
         self.assertEqual(cm.exception.info.type, "NotSupportedError")
@@ -209,13 +281,21 @@ class TestUrlDownloadRedirectAndLimits(unittest.TestCase):
             return ([ipaddress.ip_address("93.184.216.34")], False)
 
         class _TimeoutConn:
-            def request(self, method: str, path: str, body: object = None, headers: dict[str, str] | None = None):  # noqa: ARG002
+            def request(
+                self,
+                method: str,
+                path: str,
+                body: object = None,
+                headers: dict[str, str] | None = None,
+            ):  # noqa: ARG002
                 raise socket.timeout()
 
             def close(self) -> None:
                 return
 
-        def _fake_make_connection(parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None):  # type: ignore[no-untyped-def]
+        def _fake_make_connection(
+            parsed, timeout_s, *, proxy_url, connect_host=None, tls_server_hostname=None
+        ):  # type: ignore[no-untyped-def]
             self.assertIsNone(proxy_url)
             self.assertEqual(parsed.hostname, "public.example")
             self.assertEqual(connect_host, "93.184.216.34")
@@ -224,9 +304,20 @@ class TestUrlDownloadRedirectAndLimits(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix="genaisdk-test-") as d:
             out_path = os.path.join(d, "out.bin")
-            with patch("nous.genai._internal.http._resolve_url_host_ips", side_effect=_fake_resolve):
-                with patch("nous.genai._internal.http._make_connection", side_effect=_fake_make_connection):
+            with patch(
+                "nous.genai._internal.http._resolve_url_host_ips",
+                side_effect=_fake_resolve,
+            ):
+                with patch(
+                    "nous.genai._internal.http._make_connection",
+                    side_effect=_fake_make_connection,
+                ):
                     with self.assertRaises(GenAIError) as cm:
-                        download_to_file(url="http://public.example/x", output_path=out_path, timeout_ms=100, max_bytes=3)
+                        download_to_file(
+                            url="http://public.example/x",
+                            output_path=out_path,
+                            timeout_ms=100,
+                            max_bytes=3,
+                        )
 
         self.assertEqual(cm.exception.info.type, "TimeoutError")

@@ -20,7 +20,11 @@ from .._internal.capability_rules import (
     transcribe_input_modalities,
     video_input_modalities,
 )
-from .._internal.errors import invalid_request_error, not_supported_error, provider_error
+from .._internal.errors import (
+    invalid_request_error,
+    not_supported_error,
+    provider_error,
+)
 from .._internal.http import (
     download_to_tempfile,
     multipart_form_data,
@@ -82,7 +86,9 @@ def _download_image_url_as_data_url(
         if not mime_type:
             mime_type = detect_mime_type(tmp) or sniff_image_mime_type(data)
         if not mime_type:
-            raise invalid_request_error("could not infer image mime_type from url content")
+            raise invalid_request_error(
+                "could not infer image mime_type from url content"
+            )
         b64 = bytes_to_base64(data)
         return f"data:{mime_type};base64,{b64}"
     finally:
@@ -127,7 +133,9 @@ def _audio_mime_from_format(fmt: str) -> str:
 def _download_to_temp(
     url: str, *, timeout_ms: int | None, max_bytes: int | None, proxy_url: str | None
 ) -> str:
-    return download_to_tempfile(url=url, timeout_ms=timeout_ms, max_bytes=max_bytes, proxy_url=proxy_url)
+    return download_to_tempfile(
+        url=url, timeout_ms=timeout_ms, max_bytes=max_bytes, proxy_url=proxy_url
+    )
 
 
 def _part_to_chat_content(
@@ -151,58 +159,86 @@ def _part_to_chat_content(
             )
             return {"type": "image_url", "image_url": {"url": data_url}}
         if isinstance(source, PartSourceRef):
-            raise not_supported_error("openai does not support image ref in chat input; use url/bytes/path")
+            raise not_supported_error(
+                "openai does not support image ref in chat input; use url/bytes/path"
+            )
         if isinstance(source, PartSourceBytes) and source.encoding == "base64":
             if not mime_type:
                 raise invalid_request_error("image mime_type required for base64 input")
             b64 = source.data
             if not isinstance(b64, str) or not b64:
                 raise invalid_request_error("image base64 data must be non-empty")
-            return {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}}
+            return {
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime_type};base64,{b64}"},
+            }
         if isinstance(source, PartSourcePath):
             data = file_to_bytes(source.path, _INLINE_BYTES_LIMIT)
         else:
             assert isinstance(source, PartSourceBytes)
-            data = source.data
-            if not isinstance(data, bytes):
+            raw = source.data
+            if not isinstance(raw, bytes):
                 raise invalid_request_error("image bytes data must be bytes")
+            data = raw
             if len(data) > _INLINE_BYTES_LIMIT:
-                raise not_supported_error(f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})")
+                raise not_supported_error(
+                    f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})"
+                )
         if not mime_type:
             raise invalid_request_error("image mime_type required for bytes/path input")
         b64 = bytes_to_base64(data)
-        return {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}}
+        return {
+            "type": "image_url",
+            "image_url": {"url": f"data:{mime_type};base64,{b64}"},
+        }
     if part.type == "audio":
         source = part.require_source()
         fmt = _audio_format_from_mime(part.mime_type)
         if fmt is None and isinstance(source, PartSourcePath):
             fmt = _audio_format_from_mime(detect_mime_type(source.path))
         if fmt is None:
-            raise invalid_request_error("audio format (wav/mp3/m4a) required via mime_type or extension")
+            raise invalid_request_error(
+                "audio format (wav/mp3/m4a) required via mime_type or extension"
+            )
         if provider_name == "aliyun":
             if isinstance(source, PartSourceUrl):
                 return {"type": "input_audio", "input_audio": {"data": source.url}}
             if isinstance(source, PartSourceRef):
-                raise not_supported_error("aliyun does not support audio ref in chat input; use url/bytes/path")
+                raise not_supported_error(
+                    "aliyun does not support audio ref in chat input; use url/bytes/path"
+                )
             if isinstance(source, PartSourceBytes) and source.encoding == "base64":
                 mime_type = part.mime_type or _audio_mime_from_format(fmt)
                 b64 = source.data
                 if not isinstance(b64, str) or not b64:
                     raise invalid_request_error("audio base64 data must be non-empty")
-                return {"type": "input_audio", "input_audio": {"data": f"data:{mime_type};base64,{b64}"}}
+                return {
+                    "type": "input_audio",
+                    "input_audio": {"data": f"data:{mime_type};base64,{b64}"},
+                }
             if isinstance(source, PartSourcePath):
                 data = file_to_bytes(source.path, _INLINE_BYTES_LIMIT)
-                mime_type = detect_mime_type(source.path) or part.mime_type or _audio_mime_from_format(fmt)
+                mime_type = (
+                    detect_mime_type(source.path)
+                    or part.mime_type
+                    or _audio_mime_from_format(fmt)
+                )
             else:
                 assert isinstance(source, PartSourceBytes)
-                data = source.data
-                if not isinstance(data, bytes):
+                raw = source.data
+                if not isinstance(raw, bytes):
                     raise invalid_request_error("audio bytes data must be bytes")
+                data = raw
                 if len(data) > _INLINE_BYTES_LIMIT:
-                    raise not_supported_error(f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})")
+                    raise not_supported_error(
+                        f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})"
+                    )
                 mime_type = part.mime_type or _audio_mime_from_format(fmt)
             b64 = bytes_to_base64(data)
-            return {"type": "input_audio", "input_audio": {"data": f"data:{mime_type};base64,{b64}"}}
+            return {
+                "type": "input_audio",
+                "input_audio": {"data": f"data:{mime_type};base64,{b64}"},
+            }
 
         if isinstance(source, PartSourceUrl):
             tmp = download_to_tempfile(
@@ -226,17 +262,27 @@ def _part_to_chat_content(
         elif isinstance(source, PartSourcePath):
             data = file_to_bytes(source.path, _INLINE_BYTES_LIMIT)
         elif isinstance(source, PartSourceRef):
-            raise not_supported_error("openai does not support audio ref in chat input; use url/bytes/path")
+            raise not_supported_error(
+                "openai does not support audio ref in chat input; use url/bytes/path"
+            )
         else:
             assert isinstance(source, PartSourceBytes)
-            data = source.data
-            if not isinstance(data, bytes):
+            raw = source.data
+            if not isinstance(raw, bytes):
                 raise invalid_request_error("audio bytes data must be bytes")
+            data = raw
             if len(data) > _INLINE_BYTES_LIMIT:
-                raise not_supported_error(f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})")
-        return {"type": "input_audio", "input_audio": {"data": bytes_to_base64(data), "format": fmt}}
+                raise not_supported_error(
+                    f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})"
+                )
+        return {
+            "type": "input_audio",
+            "input_audio": {"data": bytes_to_base64(data), "format": fmt},
+        }
     if part.type in {"video", "embedding"}:
-        raise not_supported_error(f"openai chat input does not support part type: {part.type}")
+        raise not_supported_error(
+            f"openai chat input does not support part type: {part.type}"
+        )
     raise not_supported_error(f"unsupported part type: {part.type}")
 
 
@@ -286,9 +332,13 @@ def _require_tool_result_meta(part: Part) -> tuple[str | None, str, Any, bool | 
     return (tool_call_id, name.strip(), result, is_error)
 
 
-def _part_to_responses_image_content(part: Part, *, timeout_ms: int | None, proxy_url: str | None) -> dict[str, Any]:
+def _part_to_responses_image_content(
+    part: Part, *, timeout_ms: int | None, proxy_url: str | None
+) -> dict[str, Any]:
     if part.type != "image":
-        raise not_supported_error(f"responses protocol does not support part type: {part.type}")
+        raise not_supported_error(
+            f"responses protocol does not support part type: {part.type}"
+        )
     source = part.require_source()
     mime_type = part.mime_type
     if mime_type is None and isinstance(source, PartSourcePath):
@@ -304,14 +354,39 @@ def _part_to_responses_image_content(part: Part, *, timeout_ms: int | None, prox
         )
         return {"type": "input_image", "image_url": data_url}
     if isinstance(source, PartSourceRef):
-        raise not_supported_error("responses protocol does not support image ref in input; use url/bytes/path")
+        raise not_supported_error(
+            "responses protocol does not support image ref in input; use url/bytes/path"
+        )
     if isinstance(source, PartSourcePath):
         data = file_to_bytes(source.path, _INLINE_BYTES_LIMIT)
     else:
         assert isinstance(source, PartSourceBytes)
-        data = source.data
+        if source.encoding == "base64":
+            b64 = source.data
+            if not isinstance(b64, str) or not b64:
+                raise invalid_request_error("image base64 data must be non-empty")
+            estimated_bytes = (len(b64) * 3) // 4
+            if estimated_bytes > _INLINE_BYTES_LIMIT:
+                raise not_supported_error(
+                    f"inline bytes too large ({estimated_bytes} > {_INLINE_BYTES_LIMIT})"
+                )
+            if not mime_type:
+                raise invalid_request_error(
+                    "image mime_type required for base64 bytes/path input"
+                )
+            return {
+                "type": "input_image",
+                "image_url": f"data:{mime_type};base64,{b64}",
+            }
+
+        raw = source.data
+        if not isinstance(raw, bytes):
+            raise invalid_request_error("image bytes data must be bytes")
+        data = raw
         if len(data) > _INLINE_BYTES_LIMIT:
-            raise not_supported_error(f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})")
+            raise not_supported_error(
+                f"inline bytes too large ({len(data)} > {_INLINE_BYTES_LIMIT})"
+            )
     if not mime_type:
         raise invalid_request_error("image mime_type required for bytes/path input")
     b64 = bytes_to_base64(data)
@@ -455,24 +530,32 @@ class OpenAIAdapter:
                 out.append(mid)
         return sorted(set(out))
 
-    def generate(self, request: GenerateRequest, *, stream: bool) -> GenerateResponse | Iterator[GenerateEvent]:
+    def generate(
+        self, request: GenerateRequest, *, stream: bool
+    ) -> GenerateResponse | Iterator[GenerateEvent]:
         model_id = request.model_id()
         modalities = set(request.output.modalities)
         if "embedding" in modalities:
             if modalities != {"embedding"}:
-                raise not_supported_error("embedding cannot be combined with other output modalities")
+                raise not_supported_error(
+                    "embedding cannot be combined with other output modalities"
+                )
             if stream:
                 raise not_supported_error("embedding does not support streaming")
             return self._embed(request, model_id=model_id)
 
         if modalities == {"video"}:
             if stream:
-                raise not_supported_error("openai video generation does not support streaming")
+                raise not_supported_error(
+                    "openai video generation does not support streaming"
+                )
             return self._video(request, model_id=model_id)
 
         if modalities == {"image"}:
             if stream:
-                raise not_supported_error("openai image generation does not support streaming")
+                raise not_supported_error(
+                    "openai image generation does not support streaming"
+                )
             return self._images(request, model_id=model_id)
 
         if modalities == {"audio"}:
@@ -480,23 +563,35 @@ class OpenAIAdapter:
                 raise not_supported_error("openai TTS does not support streaming")
             return self._tts(request, model_id=model_id)
 
-        if modalities == {"text"} and self._is_transcribe_model(model_id) and self._has_audio_input(request):
+        if (
+            modalities == {"text"}
+            and self._is_transcribe_model(model_id)
+            and self._has_audio_input(request)
+        ):
             if stream:
-                raise not_supported_error("openai transcription does not support streaming")
+                raise not_supported_error(
+                    "openai transcription does not support streaming"
+                )
             return self._transcribe(request, model_id=model_id)
 
         if self.chat_api == "responses":
             if stream:
                 if "audio" in modalities:
-                    raise not_supported_error("responses protocol does not support audio output in this SDK yet")
+                    raise not_supported_error(
+                        "responses protocol does not support audio output in this SDK yet"
+                    )
                 return self._responses_stream(request, model_id=model_id)
             if "audio" in modalities:
-                raise not_supported_error("responses protocol does not support audio output in this SDK yet")
+                raise not_supported_error(
+                    "responses protocol does not support audio output in this SDK yet"
+                )
             return self._responses(request, model_id=model_id)
 
         if stream:
             if "audio" in modalities:
-                raise not_supported_error("streaming audio output is not supported in this SDK yet")
+                raise not_supported_error(
+                    "streaming audio output is not supported in this SDK yet"
+                )
             return self._chat_stream(request, model_id=model_id)
         return self._chat(request, model_id=model_id)
 
@@ -506,16 +601,22 @@ class OpenAIAdapter:
             headers["Idempotency-Key"] = request.params.idempotency_key
         return headers
 
-    def _apply_provider_options(self, body: dict[str, Any], request: GenerateRequest) -> None:
+    def _apply_provider_options(
+        self, body: dict[str, Any], request: GenerateRequest
+    ) -> None:
         opts = request.provider_options.get(self.provider_name)
         if not isinstance(opts, dict):
             return
         for k, v in opts.items():
             if k in body:
-                raise invalid_request_error(f"provider_options cannot override body.{k}")
+                raise invalid_request_error(
+                    f"provider_options cannot override body.{k}"
+                )
             body[k] = v
 
-    def _apply_provider_options_form_fields(self, fields: dict[str, str], request: GenerateRequest) -> None:
+    def _apply_provider_options_form_fields(
+        self, fields: dict[str, str], request: GenerateRequest
+    ) -> None:
         opts = request.provider_options.get(self.provider_name)
         if not isinstance(opts, dict):
             return
@@ -523,7 +624,9 @@ class OpenAIAdapter:
             if v is None:
                 continue
             if k in fields:
-                raise invalid_request_error(f"provider_options cannot override fields.{k}")
+                raise invalid_request_error(
+                    f"provider_options cannot override fields.{k}"
+                )
             if isinstance(v, bool):
                 fields[k] = "true" if v else "false"
             elif isinstance(v, (int, float, str)):
@@ -589,11 +692,21 @@ class OpenAIAdapter:
             if m.role == "tool":
                 tool_parts = [p for p in m.content if p.type == "tool_result"]
                 if len(tool_parts) != 1 or len(m.content) != 1:
-                    raise invalid_request_error("tool messages must contain exactly one tool_result part")
+                    raise invalid_request_error(
+                        "tool messages must contain exactly one tool_result part"
+                    )
                 tool_call_id, _, result, _ = _require_tool_result_meta(tool_parts[0])
                 if not tool_call_id:
-                    raise invalid_request_error("tool_result.meta.tool_call_id required for OpenAI tool messages")
-                messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": _tool_result_to_string(result)})
+                    raise invalid_request_error(
+                        "tool_result.meta.tool_call_id required for OpenAI tool messages"
+                    )
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": _tool_result_to_string(result),
+                    }
+                )
                 continue
 
             tool_calls: list[dict[str, Any]] = []
@@ -601,20 +714,29 @@ class OpenAIAdapter:
             for p in m.content:
                 if p.type == "tool_call":
                     if m.role != "assistant":
-                        raise invalid_request_error("tool_call parts are only allowed in assistant messages")
+                        raise invalid_request_error(
+                            "tool_call parts are only allowed in assistant messages"
+                        )
                     tool_call_id, name, arguments = _require_tool_call_meta(p)
                     if not tool_call_id:
-                        raise invalid_request_error("tool_call.meta.tool_call_id required for OpenAI tool calls")
+                        raise invalid_request_error(
+                            "tool_call.meta.tool_call_id required for OpenAI tool calls"
+                        )
                     tool_calls.append(
                         {
                             "id": tool_call_id,
                             "type": "function",
-                            "function": {"name": name, "arguments": _tool_call_to_json_arguments(arguments)},
+                            "function": {
+                                "name": name,
+                                "arguments": _tool_call_to_json_arguments(arguments),
+                            },
                         }
                     )
                     continue
                 if p.type == "tool_result":
-                    raise invalid_request_error("tool_result parts must be sent as role='tool'")
+                    raise invalid_request_error(
+                        "tool_result parts must be sent as role='tool'"
+                    )
                 content.append(
                     _part_to_chat_content(
                         p,
@@ -624,7 +746,10 @@ class OpenAIAdapter:
                     )
                 )
 
-            msg: dict[str, Any] = {"role": m.role, "content": content if content else None}
+            msg: dict[str, Any] = {
+                "role": m.role,
+                "content": content if content else None,
+            }
             if tool_calls:
                 msg["tool_calls"] = tool_calls
             messages.append(msg)
@@ -639,7 +764,9 @@ class OpenAIAdapter:
             body["seed"] = params.seed
         if params.reasoning is not None:
             if params.reasoning.effort is not None:
-                body["reasoning_effort"] = normalize_reasoning_effort(params.reasoning.effort)
+                body["reasoning_effort"] = normalize_reasoning_effort(
+                    params.reasoning.effort
+                )
         max_out = self._text_max_output_tokens(request)
         if max_out is not None:
             body["max_completion_tokens"] = max_out
@@ -670,7 +797,10 @@ class OpenAIAdapter:
             if choice.mode in {"required", "tool"} and not request.tools:
                 raise invalid_request_error("tool_choice requires request.tools")
             if choice.mode == "tool":
-                body["tool_choice"] = {"type": "function", "function": {"name": choice.name}}
+                body["tool_choice"] = {
+                    "type": "function",
+                    "function": {"name": choice.name},
+                }
             else:
                 body["tool_choice"] = choice.mode
 
@@ -678,9 +808,13 @@ class OpenAIAdapter:
         if "audio" in modalities:
             audio = request.output.audio
             if audio is None or not audio.voice:
-                raise invalid_request_error("output.audio.voice required for audio output")
+                raise invalid_request_error(
+                    "output.audio.voice required for audio output"
+                )
             fmt = audio.format or "wav"
-            body["modalities"] = ["audio"] if modalities == ["audio"] else ["text", "audio"]
+            body["modalities"] = (
+                ["audio"] if modalities == ["audio"] else ["text", "audio"]
+            )
             body["audio"] = {"voice": audio.voice, "format": fmt}
 
         self._apply_provider_options(body, request)
@@ -697,12 +831,20 @@ class OpenAIAdapter:
             proxy_url=self.proxy_url,
         )
         return self._parse_chat_response(
-            obj, provider=self.provider_name, model=f"{self.provider_name}:{model_id}", request=request
+            obj,
+            provider=self.provider_name,
+            model=f"{self.provider_name}:{model_id}",
+            request=request,
         )
 
-    def _responses(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _responses(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         url = f"{self.base_url}/responses"
-        body: dict[str, Any] = {"model": model_id, "input": self._responses_input(request)}
+        body: dict[str, Any] = {
+            "model": model_id,
+            "input": self._responses_input(request),
+        }
         params = request.params
         if params.temperature is not None:
             body["temperature"] = params.temperature
@@ -710,7 +852,9 @@ class OpenAIAdapter:
             body["top_p"] = params.top_p
         if params.reasoning is not None:
             if params.reasoning.effort is not None:
-                body["reasoning"] = {"effort": normalize_reasoning_effort(params.reasoning.effort)}
+                body["reasoning"] = {
+                    "effort": normalize_reasoning_effort(params.reasoning.effort)
+                }
         max_out = self._text_max_output_tokens(request)
         if max_out is not None:
             body["max_output_tokens"] = max_out
@@ -727,7 +871,9 @@ class OpenAIAdapter:
                 tool_obj: dict[str, Any] = {"type": "function", "name": name}
                 if isinstance(t.description, str) and t.description.strip():
                     tool_obj["description"] = t.description.strip()
-                tool_obj["parameters"] = t.parameters if t.parameters is not None else {"type": "object"}
+                tool_obj["parameters"] = (
+                    t.parameters if t.parameters is not None else {"type": "object"}
+                )
                 if t.strict is not None:
                     tool_obj["strict"] = bool(t.strict)
                 tools.append(tool_obj)
@@ -739,7 +885,8 @@ class OpenAIAdapter:
                 raise invalid_request_error("tool_choice requires request.tools")
             if choice.mode == "tool":
                 if self.provider_name.startswith("tuzi"):
-                    if len(request.tools or []) == 1 and request.tools[0].name.strip() == choice.name:
+                    req_tools = request.tools or []
+                    if len(req_tools) == 1 and req_tools[0].name.strip() == choice.name:
                         body["tool_choice"] = "required"
                     else:
                         raise not_supported_error(
@@ -765,9 +912,15 @@ class OpenAIAdapter:
             obj, provider=self.provider_name, model=f"{self.provider_name}:{model_id}"
         )
 
-    def _responses_stream(self, request: GenerateRequest, *, model_id: str) -> Iterator[GenerateEvent]:
+    def _responses_stream(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> Iterator[GenerateEvent]:
         url = f"{self.base_url}/responses"
-        body: dict[str, Any] = {"model": model_id, "input": self._responses_input(request), "stream": True}
+        body: dict[str, Any] = {
+            "model": model_id,
+            "input": self._responses_input(request),
+            "stream": True,
+        }
         params = request.params
         if params.temperature is not None:
             body["temperature"] = params.temperature
@@ -775,7 +928,9 @@ class OpenAIAdapter:
             body["top_p"] = params.top_p
         if params.reasoning is not None:
             if params.reasoning.effort is not None:
-                body["reasoning"] = {"effort": normalize_reasoning_effort(params.reasoning.effort)}
+                body["reasoning"] = {
+                    "effort": normalize_reasoning_effort(params.reasoning.effort)
+                }
         max_out = self._text_max_output_tokens(request)
         if max_out is not None:
             body["max_output_tokens"] = max_out
@@ -792,7 +947,9 @@ class OpenAIAdapter:
                 tool_obj: dict[str, Any] = {"type": "function", "name": name}
                 if isinstance(t.description, str) and t.description.strip():
                     tool_obj["description"] = t.description.strip()
-                tool_obj["parameters"] = t.parameters if t.parameters is not None else {"type": "object"}
+                tool_obj["parameters"] = (
+                    t.parameters if t.parameters is not None else {"type": "object"}
+                )
                 if t.strict is not None:
                     tool_obj["strict"] = bool(t.strict)
                 tools.append(tool_obj)
@@ -804,7 +961,8 @@ class OpenAIAdapter:
                 raise invalid_request_error("tool_choice requires request.tools")
             if choice.mode == "tool":
                 if self.provider_name.startswith("tuzi"):
-                    if len(request.tools or []) == 1 and request.tools[0].name.strip() == choice.name:
+                    req_tools = request.tools or []
+                    if len(req_tools) == 1 and req_tools[0].name.strip() == choice.name:
                         body["tool_choice"] = "required"
                     else:
                         raise not_supported_error(
@@ -833,16 +991,20 @@ class OpenAIAdapter:
                 if typ == "response.output_text.delta":
                     delta = obj.get("delta")
                     if isinstance(delta, str) and delta:
-                        yield GenerateEvent(type="output.text.delta", data={"delta": delta})
+                        yield GenerateEvent(
+                            type="output.text.delta", data={"delta": delta}
+                        )
                     continue
                 if typ == "response.completed":
                     break
                 if typ == "response.incomplete":
                     resp = obj.get("response")
-                    reason = None
+                    reason: str | None = None
                     if isinstance(resp, dict):
                         details = resp.get("incomplete_details")
-                        if isinstance(details, dict) and isinstance(details.get("reason"), str):
+                        if isinstance(details, dict) and isinstance(
+                            details.get("reason"), str
+                        ):
                             reason = details["reason"]
                     msg = "responses returned status: incomplete"
                     if reason:
@@ -850,22 +1012,31 @@ class OpenAIAdapter:
                     raise provider_error(msg, retryable=False)
                 if typ == "response.failed":
                     resp = obj.get("response")
-                    code = None
-                    msg = None
+                    code: str | None = None
+                    msg = "responses returned status: failed"
                     if isinstance(resp, dict):
                         err = resp.get("error")
                         if isinstance(err, dict):
-                            if isinstance(err.get("code"), str):
-                                code = err["code"]
-                            if isinstance(err.get("message"), str):
-                                msg = err["message"]
-                    msg = msg or "responses returned status: failed"
-                    raise provider_error(msg[:2_000], provider_code=code, retryable=False)
+                            err_code = err.get("code")
+                            if isinstance(err_code, str) and err_code:
+                                code = err_code
+                            err_msg = err.get("message")
+                            if isinstance(err_msg, str) and err_msg:
+                                msg = err_msg
+                    raise provider_error(
+                        msg[:2_000], provider_code=code, retryable=False
+                    )
                 if typ == "error":
                     code = obj.get("code") if isinstance(obj.get("code"), str) else None
-                    msg = obj.get("message") if isinstance(obj.get("message"), str) else None
-                    msg = msg or "responses stream error"
-                    raise provider_error(msg[:2_000], provider_code=code, retryable=False)
+                    err_msg = obj.get("message")
+                    msg = (
+                        err_msg
+                        if isinstance(err_msg, str) and err_msg
+                        else "responses stream error"
+                    )
+                    raise provider_error(
+                        msg[:2_000], provider_code=code, retryable=False
+                    )
             yield GenerateEvent(type="done", data={})
 
         return _iter()
@@ -876,10 +1047,14 @@ class OpenAIAdapter:
             if m.role == "tool":
                 tool_parts = [p for p in m.content if p.type == "tool_result"]
                 if len(tool_parts) != 1 or len(m.content) != 1:
-                    raise invalid_request_error("tool messages must contain exactly one tool_result part")
+                    raise invalid_request_error(
+                        "tool messages must contain exactly one tool_result part"
+                    )
                 tool_call_id, _, result, _ = _require_tool_result_meta(tool_parts[0])
                 if not tool_call_id:
-                    raise invalid_request_error("tool_result.meta.tool_call_id required for responses protocol")
+                    raise invalid_request_error(
+                        "tool_result.meta.tool_call_id required for responses protocol"
+                    )
                 items.append(
                     {
                         "type": "function_call_output",
@@ -896,16 +1071,26 @@ class OpenAIAdapter:
                     continue
                 if p.type == "image":
                     content.append(
-                        _part_to_responses_image_content(p, timeout_ms=request.params.timeout_ms, proxy_url=self.proxy_url)
+                        _part_to_responses_image_content(
+                            p,
+                            timeout_ms=request.params.timeout_ms,
+                            proxy_url=self.proxy_url,
+                        )
                     )
                     continue
                 if p.type in {"tool_call", "tool_result"}:
-                    raise not_supported_error("responses protocol does not support tool parts in message input")
-                raise not_supported_error(f"responses protocol does not support input part: {p.type}")
+                    raise not_supported_error(
+                        "responses protocol does not support tool parts in message input"
+                    )
+                raise not_supported_error(
+                    f"responses protocol does not support input part: {p.type}"
+                )
             items.append({"role": role, "content": content})
         return items
 
-    def _parse_responses_response(self, obj: dict[str, Any], *, provider: str, model: str) -> GenerateResponse:
+    def _parse_responses_response(
+        self, obj: dict[str, Any], *, provider: str, model: str
+    ) -> GenerateResponse:
         resp_id = obj.get("id") or f"sdk_{uuid4().hex}"
         status = obj.get("status")
         if status != "completed":
@@ -926,14 +1111,21 @@ class OpenAIAdapter:
                 for c in content:
                     if not isinstance(c, dict):
                         continue
-                    if c.get("type") == "output_text" and isinstance(c.get("text"), str):
+                    if c.get("type") == "output_text" and isinstance(
+                        c.get("text"), str
+                    ):
                         parts.append(Part.from_text(c["text"]))
                 continue
             if typ == "function_call":
                 call_id = item.get("call_id")
                 name = item.get("name")
                 arguments = item.get("arguments")
-                if isinstance(call_id, str) and call_id and isinstance(name, str) and name:
+                if (
+                    isinstance(call_id, str)
+                    and call_id
+                    and isinstance(name, str)
+                    and name
+                ):
                     parts.append(
                         Part.tool_call(
                             tool_call_id=call_id,
@@ -954,7 +1146,9 @@ class OpenAIAdapter:
             usage=usage,
         )
 
-    def _chat_stream(self, request: GenerateRequest, *, model_id: str) -> Iterator[GenerateEvent]:
+    def _chat_stream(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> Iterator[GenerateEvent]:
         url = f"{self.base_url}/chat/completions"
         body = self._chat_body(request, model_id=model_id)
         body["stream"] = True
@@ -1011,7 +1205,13 @@ class OpenAIAdapter:
                 if request and request.output.audio and request.output.audio.format:
                     fmt = request.output.audio.format
                 mime = _audio_mime_from_format(fmt or "wav")
-                parts.append(Part(type="audio", mime_type=mime, source=PartSourceBytes(data=data_b64, encoding="base64")))
+                parts.append(
+                    Part(
+                        type="audio",
+                        mime_type=mime,
+                        source=PartSourceBytes(data=data_b64, encoding="base64"),
+                    )
+                )
             transcript = audio.get("transcript")
             if (
                 isinstance(transcript, str)
@@ -1062,7 +1262,9 @@ class OpenAIAdapter:
             or model_id.startswith("gpt-image-")
             or model_id.startswith("chatgpt-image")
         ):
-            raise not_supported_error(f'image generation requires model like "{self.provider_name}:gpt-image-1"')
+            raise not_supported_error(
+                f'image generation requires model like "{self.provider_name}:gpt-image-1"'
+            )
 
         texts: list[str] = []
         images: list[Part] = []
@@ -1076,11 +1278,17 @@ class OpenAIAdapter:
                 if p.type == "image":
                     images.append(p)
                     continue
-                raise invalid_request_error("image generation only supports text (+ optional image)")
+                raise invalid_request_error(
+                    "image generation only supports text (+ optional image)"
+                )
         if len(texts) != 1:
-            raise invalid_request_error("image generation requires exactly one text part")
+            raise invalid_request_error(
+                "image generation requires exactly one text part"
+            )
         if len(images) > 1:
-            raise invalid_request_error("image generation supports at most one image input")
+            raise invalid_request_error(
+                "image generation supports at most one image input"
+            )
 
         prompt = texts[0]
         image_part = images[0] if images else None
@@ -1137,20 +1345,26 @@ class OpenAIAdapter:
                 file_path = src.path
             elif isinstance(src, PartSourceBytes) and src.encoding == "base64":
                 try:
-                    data = base64.b64decode(src.data)
+                    decoded = base64.b64decode(src.data)
                 except Exception:
                     raise invalid_request_error("image base64 data is not valid base64")
-                with tempfile.NamedTemporaryFile(prefix="genaisdk-", suffix=".bin", delete=False) as f:
-                    f.write(data)
+                with tempfile.NamedTemporaryFile(
+                    prefix="genaisdk-", suffix=".bin", delete=False
+                ) as f:
+                    f.write(decoded)
                     tmp_path = f.name
                 file_path = tmp_path
             elif isinstance(src, PartSourceRef):
-                raise not_supported_error("image edits do not support ref input; use url/bytes/path")
+                raise not_supported_error(
+                    "image edits do not support ref input; use url/bytes/path"
+                )
             else:
                 assert isinstance(src, PartSourceBytes)
                 if not isinstance(src.data, bytes):
                     raise invalid_request_error("image bytes data must be bytes")
-                with tempfile.NamedTemporaryFile(prefix="genaisdk-", suffix=".bin", delete=False) as f:
+                with tempfile.NamedTemporaryFile(
+                    prefix="genaisdk-", suffix=".bin", delete=False
+                ) as f:
                     f.write(src.data)
                     tmp_path = f.name
                 file_path = tmp_path
@@ -1164,7 +1378,7 @@ class OpenAIAdapter:
                 if response_format:
                     fields["response_format"] = response_format
                 self._apply_provider_options_form_fields(fields, request)
-                body = multipart_form_data(
+                streaming_body = multipart_form_data(
                     fields=fields,
                     file_field="image",
                     file_path=file_path,
@@ -1177,7 +1391,7 @@ class OpenAIAdapter:
                     method="POST",
                     url=f"{self.base_url}/images/edits",
                     headers=self._headers(request),
-                    body=body,
+                    body=streaming_body,
                     timeout_ms=request.params.timeout_ms,
                     proxy_url=self.proxy_url,
                 )
@@ -1188,16 +1402,16 @@ class OpenAIAdapter:
                     except OSError:
                         pass
         resp_id = obj.get("created") or f"sdk_{uuid4().hex}"
-        data = obj.get("data")
+        data_field = obj.get("data")
         items: list[object] | None = None
-        if isinstance(data, list):
-            items = data
-        elif isinstance(data, dict):
-            images = data.get("images")
-            if isinstance(images, list):
-                items = images
+        if isinstance(data_field, list):
+            items = data_field
+        elif isinstance(data_field, dict):
+            images_data = data_field.get("images")
+            if isinstance(images_data, list):
+                items = images_data
             else:
-                inner = data.get("data")
+                inner = data_field.get("data")
                 if isinstance(inner, list):
                     items = inner
         if not items:
@@ -1212,7 +1426,13 @@ class OpenAIAdapter:
                 continue
             b64 = item.get("b64_json")
             if isinstance(b64, str) and b64:
-                parts.append(Part(type="image", mime_type="image/png", source=PartSourceBytes(data=b64, encoding="base64")))
+                parts.append(
+                    Part(
+                        type="image",
+                        mime_type="image/png",
+                        source=PartSourceBytes(data=b64, encoding="base64"),
+                    )
+                )
         if not parts:
             raise provider_error("openai images response missing urls")
         return GenerateResponse(
@@ -1225,8 +1445,12 @@ class OpenAIAdapter:
         )
 
     def _tts(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
-        if self.provider_name == "openai" and not (model_id.startswith("tts-") or "-tts" in model_id):
-            raise invalid_request_error(f'TTS requires model like "{self.provider_name}:tts-1"')
+        if self.provider_name == "openai" and not (
+            model_id.startswith("tts-") or "-tts" in model_id
+        ):
+            raise invalid_request_error(
+                f'TTS requires model like "{self.provider_name}:tts-1"'
+            )
         text = self._single_text_prompt(request)
         audio = request.output.audio
         if audio is None or not audio.voice:
@@ -1262,7 +1486,9 @@ class OpenAIAdapter:
             usage=None,
         )
 
-    def _transcribe(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
+    def _transcribe(
+        self, request: GenerateRequest, *, model_id: str
+    ) -> GenerateResponse:
         audio_part = self._single_audio_part(request)
         prompt = self._transcription_prompt(request, audio_part=audio_part)
         src = audio_part.require_source()
@@ -1282,7 +1508,9 @@ class OpenAIAdapter:
                 data = base64.b64decode(src.data)
             except Exception:
                 raise invalid_request_error("audio base64 data is not valid base64")
-            with tempfile.NamedTemporaryFile(prefix="genaisdk-", suffix=".bin", delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                prefix="genaisdk-", suffix=".bin", delete=False
+            ) as f:
                 f.write(data)
                 tmp_path = f.name
             file_path = tmp_path
@@ -1292,7 +1520,9 @@ class OpenAIAdapter:
             assert isinstance(src, PartSourceBytes)
             if not isinstance(src.data, bytes):
                 raise invalid_request_error("audio bytes data must be bytes")
-            with tempfile.NamedTemporaryFile(prefix="genaisdk-", suffix=".bin", delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                prefix="genaisdk-", suffix=".bin", delete=False
+            ) as f:
                 f.write(src.data)
                 tmp_path = f.name
             file_path = tmp_path
@@ -1314,7 +1544,9 @@ class OpenAIAdapter:
                 file_field="file",
                 file_path=file_path,
                 filename=os.path.basename(file_path),
-                file_mime_type=audio_part.mime_type or detect_mime_type(file_path) or "application/octet-stream",
+                file_mime_type=audio_part.mime_type
+                or detect_mime_type(file_path)
+                or "application/octet-stream",
             )
             url = f"{self.base_url}/audio/transcriptions"
             obj = request_streaming_body_json(
@@ -1345,15 +1577,23 @@ class OpenAIAdapter:
         )
 
     def _embed(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
-        if self.provider_name == "openai" and not model_id.startswith("text-embedding-"):
-            raise not_supported_error(f'embedding requires model like "{self.provider_name}:text-embedding-3-small"')
+        if self.provider_name == "openai" and not model_id.startswith(
+            "text-embedding-"
+        ):
+            raise not_supported_error(
+                f'embedding requires model like "{self.provider_name}:text-embedding-3-small"'
+            )
         texts = _gather_text_inputs(request)
         url = f"{self.base_url}/embeddings"
         body: dict[str, Any] = {"model": model_id, "input": texts}
         emb = request.output.embedding
         if emb and emb.dimensions is not None:
-            if self.provider_name == "openai" and not model_id.startswith("text-embedding-3-"):
-                raise invalid_request_error("embedding.dimensions is only supported for OpenAI text-embedding-3 models")
+            if self.provider_name == "openai" and not model_id.startswith(
+                "text-embedding-3-"
+            ):
+                raise invalid_request_error(
+                    "embedding.dimensions is only supported for OpenAI text-embedding-3 models"
+                )
             body["dimensions"] = emb.dimensions
         self._apply_provider_options(body, request)
         obj = request_json(
@@ -1372,7 +1612,9 @@ class OpenAIAdapter:
             if not isinstance(item, dict):
                 raise provider_error("openai embeddings item is not object")
             emb = item.get("embedding")
-            if not isinstance(emb, list) or not all(isinstance(x, (int, float)) for x in emb):
+            if not isinstance(emb, list) or not all(
+                isinstance(x, (int, float)) for x in emb
+            ):
                 raise provider_error("openai embeddings item missing embedding")
             parts.append(Part(type="embedding", embedding=[float(x) for x in emb]))
 
@@ -1395,7 +1637,9 @@ class OpenAIAdapter:
 
     def _video(self, request: GenerateRequest, *, model_id: str) -> GenerateResponse:
         if self.provider_name == "openai" and not model_id.startswith("sora-"):
-            raise not_supported_error(f'video generation requires model like "{self.provider_name}:sora-2"')
+            raise not_supported_error(
+                f'video generation requires model like "{self.provider_name}:sora-2"'
+            )
 
         is_tuzi = self.provider_name.startswith("tuzi")
 
@@ -1412,11 +1656,17 @@ class OpenAIAdapter:
                     if part.type == "image":
                         images.append(part)
                         continue
-                    raise invalid_request_error("video generation only supports text (+ optional image)")
+                    raise invalid_request_error(
+                        "video generation only supports text (+ optional image)"
+                    )
             if len(texts) != 1:
-                raise invalid_request_error("video generation requires exactly one text part")
+                raise invalid_request_error(
+                    "video generation requires exactly one text part"
+                )
             if len(images) > 1:
-                raise invalid_request_error("video generation supports at most one image input")
+                raise invalid_request_error(
+                    "video generation supports at most one image input"
+                )
             return texts[0], images[0] if images else None
 
         if is_tuzi:
@@ -1429,7 +1679,9 @@ class OpenAIAdapter:
             is_sora = model_id.lower().startswith("sora-")
             fields: dict[str, str] = {"model": model_id, "prompt": prompt}
             if video and video.duration_sec is not None:
-                fields["seconds"] = str(_closest_video_seconds(video.duration_sec, is_tuzi=not is_sora))
+                fields["seconds"] = str(
+                    _closest_video_seconds(video.duration_sec, is_tuzi=not is_sora)
+                )
             if video and video.aspect_ratio:
                 size = _video_size_from_aspect_ratio(video.aspect_ratio)
                 if size:
@@ -1438,37 +1690,50 @@ class OpenAIAdapter:
             tmp_path: str | None = None
             try:
                 if image_part is None:
-                    body = multipart_form_data_fields(fields=fields)
+                    stream_body = multipart_form_data_fields(fields=fields)
                 else:
                     src = image_part.require_source()
                     if isinstance(src, PartSourceUrl):
                         fields["first_frame_image"] = src.url
                         fields["input_reference"] = src.url
-                        body = multipart_form_data_fields(fields=fields)
+                        stream_body = multipart_form_data_fields(fields=fields)
                     elif isinstance(src, PartSourceRef):
-                        raise not_supported_error("tuzi video generation does not support ref image input")
+                        raise not_supported_error(
+                            "tuzi video generation does not support ref image input"
+                        )
                     else:
                         if isinstance(src, PartSourcePath):
                             file_path = src.path
-                        elif isinstance(src, PartSourceBytes) and src.encoding == "base64":
+                        elif (
+                            isinstance(src, PartSourceBytes)
+                            and src.encoding == "base64"
+                        ):
                             try:
-                                data = base64.b64decode(src.data)
+                                decoded = base64.b64decode(src.data)
                             except Exception:
-                                raise invalid_request_error("image base64 data is not valid base64")
-                            with tempfile.NamedTemporaryFile(prefix="genaisdk-", suffix=".bin", delete=False) as f:
-                                f.write(data)
+                                raise invalid_request_error(
+                                    "image base64 data is not valid base64"
+                                )
+                            with tempfile.NamedTemporaryFile(
+                                prefix="genaisdk-", suffix=".bin", delete=False
+                            ) as f:
+                                f.write(decoded)
                                 tmp_path = f.name
                             file_path = tmp_path
                         else:
                             assert isinstance(src, PartSourceBytes)
                             if not isinstance(src.data, bytes):
-                                raise invalid_request_error("image bytes data must be bytes")
-                            with tempfile.NamedTemporaryFile(prefix="genaisdk-", suffix=".bin", delete=False) as f:
+                                raise invalid_request_error(
+                                    "image bytes data must be bytes"
+                                )
+                            with tempfile.NamedTemporaryFile(
+                                prefix="genaisdk-", suffix=".bin", delete=False
+                            ) as f:
                                 f.write(src.data)
                                 tmp_path = f.name
                             file_path = tmp_path
 
-                        body = multipart_form_data(
+                        stream_body = multipart_form_data(
                             fields=fields,
                             file_field="input_reference",
                             file_path=file_path,
@@ -1481,7 +1746,7 @@ class OpenAIAdapter:
                     method="POST",
                     url=f"{self.base_url}/videos",
                     headers=self._headers(request),
-                    body=body,
+                    body=stream_body,
                     timeout_ms=request.params.timeout_ms,
                     proxy_url=self.proxy_url,
                 )
@@ -1494,7 +1759,9 @@ class OpenAIAdapter:
         else:
             body: dict[str, Any] = {"model": model_id, "prompt": prompt}
             if video and video.duration_sec is not None:
-                body["seconds"] = _closest_video_seconds(video.duration_sec, is_tuzi=False)
+                body["seconds"] = _closest_video_seconds(
+                    video.duration_sec, is_tuzi=False
+                )
             if video and video.aspect_ratio:
                 size = _video_size_from_aspect_ratio(video.aspect_ratio)
                 if size:
@@ -1542,7 +1809,11 @@ class OpenAIAdapter:
             timeout_ms=request.params.timeout_ms,
             proxy_url=self.proxy_url,
         )
-        part = Part(type="video", mime_type="video/mp4", source=PartSourceBytes(data=bytes_to_base64(data), encoding="base64"))
+        part = Part(
+            type="video",
+            mime_type="video/mp4",
+            source=PartSourceBytes(data=bytes_to_base64(data), encoding="base64"),
+        )
         return GenerateResponse(
             id=f"sdk_{uuid4().hex}",
             provider=self.provider_name,
@@ -1552,7 +1823,9 @@ class OpenAIAdapter:
             usage=None,
         )
 
-    def _wait_video_job(self, video_id: str, *, timeout_ms: int | None) -> dict[str, Any]:
+    def _wait_video_job(
+        self, video_id: str, *, timeout_ms: int | None
+    ) -> dict[str, Any]:
         budget_ms = 120_000 if timeout_ms is None else timeout_ms
         deadline = time.time() + max(1, budget_ms) / 1000.0
         while True:
@@ -1585,12 +1858,16 @@ class OpenAIAdapter:
                 if p.type == "audio":
                     parts.append(p)
                 elif p.type != "text":
-                    raise invalid_request_error("transcription only supports audio (+ optional text)")
+                    raise invalid_request_error(
+                        "transcription only supports audio (+ optional text)"
+                    )
         if len(parts) != 1:
             raise invalid_request_error("transcription requires exactly one audio part")
         return parts[0]
 
-    def _transcription_prompt(self, request: GenerateRequest, *, audio_part: Part) -> str | None:
+    def _transcription_prompt(
+        self, request: GenerateRequest, *, audio_part: Part
+    ) -> str | None:
         v = audio_part.meta.get("transcription_prompt")
         if isinstance(v, str) and v.strip():
             return v.strip()
