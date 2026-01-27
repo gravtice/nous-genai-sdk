@@ -1,0 +1,22 @@
+.env.local
+.env.production
+.env.development
+.env.test
+__pycache__/
+.pytest_cache/
+.venv/
+.claude/
+dist/
+build/
+*.egg-info/
+
+# demo outputs
+demo_*.png
+demo_*.mp3
+demo_*.pcm
+demo_*.wav
+demo_*.mp4
+
+# demo preset assets (tracked)
+!examples/demo_image.png
+!examples/demo_tts.mp3
