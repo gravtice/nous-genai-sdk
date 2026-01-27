@@ -25,7 +25,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
@@ -45,7 +45,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Run ruff check
         run: uv run ruff check .
@@ -68,8 +68,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Run mypy
-        run: uv run mypy nous/ --ignore-missing-imports --no-error-summary || true
-        continue-on-error: true
+        run: uv run mypy nous/ --no-error-summary

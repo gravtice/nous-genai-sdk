@@ -1,0 +1,55 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Check tag matches version
+        run: |
+          python_bin="$(uv python find 3.12)"
+          "$python_bin" - <<'PY'
+          import os
+          import tomllib
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          with open("pyproject.toml", "rb") as f:
+            version = tomllib.load(f)["project"]["version"]
+          expected = f"v{version}"
+          if tag != expected:
+            raise SystemExit(f"tag {tag!r} != {expected!r}")
+          PY
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run quality gates
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy nous/ --no-error-summary
+          uv run pytest tests/ -q
+
+      - name: Build
+        run: uv build --sdist --wheel
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
