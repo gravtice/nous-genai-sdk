@@ -20,10 +20,13 @@
 ## 安装
 
 ```bash
-# 从源码安装
+# 从 PyPI 安装
+pip install nous-genai-sdk
+
+# 从源码安装（开发）
 pip install -e .
 
-# 或使用 uv（推荐）
+# 或使用 uv（开发，推荐）
 uv sync
 ```
 

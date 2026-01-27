@@ -32,7 +32,7 @@ uv run pytest tests/ -v
 # Run specific test file
 uv run pytest tests/test_client_timeout.py -v
 
-# Run with coverage
+# Run with coverage (requires pytest-cov)
 uv run pytest tests/ --cov=nous --cov-report=term-missing
 ```
 
