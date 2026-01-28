@@ -6,7 +6,7 @@
 
 English README: `README.md`
 
-一个统一、标准化的 Python GenAI SDK：用一致的 `GenerateRequest/GenerateResponse` 结构 + `Client.generate()` / `generate_stream()`，打通多 Provider、多模态能力。
+一个统一、标准化的 Python GenAI SDK：一个接口（`Client.generate()` / `generate_stream()`）+ 一套标准化 `GenerateRequest/GenerateResponse`，打通多 Provider、多模态能力。
 
 ## Features
 

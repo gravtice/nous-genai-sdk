@@ -6,7 +6,7 @@
 
 中文文档：`readme_zh.md`
 
-Unified, standardized Python GenAI SDK: one API (`Client.generate()` / `generate_stream()`) and a consistent request/response schema across providers and modalities.
+Unified, standardized Python GenAI SDK: one interface (`Client.generate()` / `generate_stream()`) + a consistent `GenerateRequest/GenerateResponse` schema across providers and modalities.
 
 ## Features
 
