@@ -18,8 +18,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/gravtice/nous-genaisdk"
-Issues = "https://github.com/gravtice/nous-genaisdk/issues"
+Homepage = "https://github.com/gravtice/nous-genai-sdk"
+Issues = "https://github.com/gravtice/nous-genai-sdk/issues"
 
 [dependency-groups]
 dev = ["mypy>=1.10.0", "pytest>=8.0.0", "ruff>=0.5.0"]

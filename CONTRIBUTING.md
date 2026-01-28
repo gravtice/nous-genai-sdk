@@ -13,8 +13,8 @@ Thank you for your interest in contributing to nous-genai-sdk!
 
 ```bash
 # Clone the repository
-git clone https://github.com/gravtice/nous-genaisdk.git
-cd nous-genaisdk
+git clone https://github.com/gravtice/nous-genai-sdk.git
+cd nous-genai-sdk
 
 # Install dependencies with uv
 uv sync

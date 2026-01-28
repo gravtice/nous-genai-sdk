@@ -48,5 +48,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP artifact memory limits with LRU eviction
 - Signed artifact URLs for authenticated access
 
-[Unreleased]: https://github.com/gravtice/nous-genaisdk/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/gravtice/nous-genaisdk/releases/tag/v0.1.0
+[Unreleased]: https://github.com/gravtice/nous-genai-sdk/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/gravtice/nous-genai-sdk/releases/tag/v0.1.0
